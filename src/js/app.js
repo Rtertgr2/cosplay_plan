@@ -267,20 +267,33 @@ const App = {
 
                 const itemEl = document.createElement('div');
                 itemEl.style.cssText = `
-                    display: flex; justify-content: space-between; align-items: center;
-                    padding: 0.625rem 0.75rem; border: 1px solid var(--border);
-                    border-radius: var(--radius-md); margin-bottom: 0.5rem;
+                    border: 1px solid var(--border); border-radius: var(--radius-md);
+                    margin-bottom: 0.75rem; overflow: hidden;
                     ${item.completed ? 'opacity: 0.5;' : ''}
                 `;
                 itemEl.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 0.625rem; flex: 1; min-width: 0;">
-                        <span style="font-size: 1rem;">${config.icon}</span>
-                        <div style="min-width: 0;">
-                            <div style="font-weight: 600; font-size: 0.875rem; ${item.completed ? 'text-decoration: line-through;' : ''} white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.UI.escapeHtml(item.name || '(ไม่มีชื่อ)')}</div>
-                            ${shopLabel ? `<div style="font-size: 0.6875rem; color: var(--text-light);">${shopLabel}</div>` : ''}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.625rem; flex: 1; min-width: 0;">
+                            <span style="font-size: 1.125rem;">${config.icon}</span>
+                            <div style="min-width: 0;">
+                                <div style="font-weight: 600; font-size: 0.875rem; ${item.completed ? 'text-decoration: line-through;' : ''}">${window.UI.escapeHtml(item.name || '(ไม่มีชื่อ)')}</div>
+                                ${shopLabel ? `<div style="font-size: 0.75rem; color: var(--text-light);">${shopLabel}</div>` : ''}
+                            </div>
                         </div>
+                        <div style="font-weight: 700; font-size: 0.9375rem; color: var(--primary); white-space: nowrap;">฿${(item.price || 0).toLocaleString()}</div>
                     </div>
-                    <div style="font-weight: 700; font-size: 0.875rem; color: var(--primary); white-space: nowrap;">฿${(item.price || 0).toLocaleString()}</div>
+                    ${item.shopUrl ? `
+                    <a href="${window.UI.escapeHtml(item.shopUrl)}" target="_blank" rel="noopener" style="
+                        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+                        padding: 0.625rem 1rem;
+                        background: #eef2ff; color: var(--primary);
+                        text-decoration: none; font-size: 0.8125rem; font-weight: 600;
+                        border-top: 1px solid var(--border);
+                        transition: background 0.2s;
+                    " onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
+                        🔗 เปิดลิงก์ร้านค้า — ${shopLabel}
+                    </a>
+                    ` : ''}
                 `;
                 list.appendChild(itemEl);
             });
