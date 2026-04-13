@@ -8,19 +8,27 @@ const App = {
      * Initialize Application
      */
     async init() {
-        await window.State.init();
+        // Load local state immediately so UI is responsive
+        window.State.loadFromLocal();
         window.UI.updateStats();
         window.UI.renderProjects();
         this.setupEventListeners();
 
+        // Sync from API in background if configured
+        if (window.API && window.API.isConfigured()) {
+            window.State.syncFromAPI().then(() => {
+                // UI will be updated by syncFromAPI internal calls
+            });
+        }
+
         // Show mode indicator
         setTimeout(() => {
             if (window.API && window.API.isConfigured()) {
-                window.UI.showToast('เชื่อมต่อ Google Sheets สำเร็จ', 'success');
+                window.UI.showToast('เชื่อมต่อคลาวด์แล้ว', 'success');
             } else {
-                window.UI.showToast('โหมดออฟไลน์ (localStorage)', 'info');
+                window.UI.showToast('โหมดออฟไลน์', 'info');
             }
-        }, 500);
+        }, 800);
     },
 
     /**
@@ -47,17 +55,7 @@ const App = {
                     window.State.tempBase64Image = result.base64;
                     window.State.tempImageInfo = result;
 
-                    // Update UI preview
-                    const preview = document.getElementById('imagePreview');
-                    preview.src = result.base64;
-                    preview.parentElement.classList.remove('hidden');
-
-                    const info = document.getElementById('imageProcessingInfo');
-                    info.innerHTML = `
-                        <p>ขนาด: ${result.width}×${result.height}px</p>
-                        <p>${result.processedSizeKB} KB (-${result.reductionPercent}%)</p>
-                    `;
-
+                    this.showImagePreview(result.base64, `ขนาด: ${result.width}×${result.height}px — ${result.processedSizeKB} KB (-${result.reductionPercent}%)`);
                     window.UI.showToast('ประมวลผลรูปภาพสำเร็จ', 'success');
                 } catch (error) {
                     window.UI.showToast(String(error), 'error');
@@ -72,6 +70,69 @@ const App = {
         }
     },
 
+    // ============ IMAGE TAB & URL SUPPORT ============
+
+    switchImageTab(mode) {
+        const tabUpload = document.getElementById('tabUpload');
+        const tabUrl = document.getElementById('tabUrl');
+        const panelUpload = document.getElementById('imageTabUpload');
+        const panelUrl = document.getElementById('imageTabUrl');
+
+        if (mode === 'url') {
+            tabUrl.style.background = 'var(--primary)';
+            tabUrl.style.color = 'white';
+            tabUpload.style.background = 'white';
+            tabUpload.style.color = 'var(--text-muted)';
+            panelUrl.classList.remove('hidden');
+            panelUpload.classList.add('hidden');
+        } else {
+            tabUpload.style.background = 'var(--primary)';
+            tabUpload.style.color = 'white';
+            tabUrl.style.background = 'white';
+            tabUrl.style.color = 'var(--text-muted)';
+            panelUpload.classList.remove('hidden');
+            panelUrl.classList.add('hidden');
+        }
+    },
+
+    loadImageFromUrl() {
+        const urlInput = document.getElementById('imageUrlInput');
+        const url = urlInput.value.trim();
+        if (!url) {
+            window.UI.showToast('กรุณาใส่ URL รูปภาพ', 'error');
+            return;
+        }
+
+        // Store URL directly (no base64 conversion — saves space)
+        window.State.tempBase64Image = url;
+        window.State.tempImageInfo = { type: 'url' };
+
+        this.showImagePreview(url, 'ใช้รูปจาก URL (ไม่ใช้ Base64)');
+        window.UI.showToast('โหลด URL รูปภาพสำเร็จ', 'success');
+    },
+
+    clearImage() {
+        window.State.tempBase64Image = null;
+        window.State.tempImageInfo = null;
+        document.getElementById('imagePreviewBox').classList.add('hidden');
+        document.getElementById('imageInput').value = '';
+        document.getElementById('imageUrlInput').value = '';
+        window.UI.showToast('ลบรูปภาพแล้ว', 'info');
+    },
+
+    showImagePreview(src, infoText) {
+        const box = document.getElementById('imagePreviewBox');
+        const img = document.getElementById('imagePreview');
+        const info = document.getElementById('imageProcessingInfo');
+
+        img.src = src;
+        img.onerror = () => {
+            info.innerHTML = '<p style="color: var(--error);">❌ โหลดรูปไม่สำเร็จ — ตรวจสอบ URL</p>';
+        };
+        info.innerHTML = `<p>${infoText}</p>`;
+        box.classList.remove('hidden');
+    },
+
     /**
      * Create New Project — reset form and switch view
      */
@@ -79,8 +140,10 @@ const App = {
         window.State.resetTemp();
         document.getElementById('projectForm').reset();
         document.getElementById('formTitle').textContent = 'สร้างโปรเจกต์ใหม่';
-        document.getElementById('imagePreview').parentElement.classList.add('hidden');
+        document.getElementById('imagePreviewBox').classList.add('hidden');
         document.getElementById('imageProcessingInfo').innerHTML = '';
+        document.getElementById('imageUrlInput').value = '';
+        this.switchImageTab('upload');
         window.UI.renderFormItems();
         window.UI.switchView('viewCreate');
     },
@@ -114,12 +177,15 @@ const App = {
 
         // Image Preview
         if (project.base64Image) {
-            const preview = document.getElementById('imagePreview');
-            preview.src = project.base64Image;
-            preview.parentElement.classList.remove('hidden');
-            document.getElementById('imageProcessingInfo').innerHTML = '<p>รูปภาพเดิม</p>';
+            const isUrl = project.base64Image.startsWith('http');
+            const label = isUrl ? 'รูปจาก URL' : 'รูปอัปโหลด (Base64)';
+            this.showImagePreview(project.base64Image, label);
+            if (isUrl) {
+                document.getElementById('imageUrlInput').value = project.base64Image;
+                this.switchImageTab('url');
+            }
         } else {
-            document.getElementById('imagePreview').parentElement.classList.add('hidden');
+            document.getElementById('imagePreviewBox').classList.add('hidden');
         }
 
         window.UI.renderFormItems();
@@ -299,25 +365,33 @@ const App = {
             });
         }
 
-        // Image
-        const imgContainer = document.getElementById('detailImage').parentElement;
+        // Image Container Logic
         const img = document.getElementById('detailImage');
+        const imgBox = img.parentElement;
+        
+        // Remove any existing status placeholders
+        const existingStatus = imgBox.querySelector('.img-status');
+        if (existingStatus) existingStatus.remove();
+
         if (project.base64Image) {
             img.src = project.base64Image;
             img.style.display = 'block';
-            imgContainer.style.display = 'block';
+            imgBox.style.display = 'block';
         } else if (project.hasImage) {
-            // API mode: image not loaded yet — show placeholder
+            // API mode: image not loaded yet — show placeholder, KEEP img tag
             img.style.display = 'none';
-            imgContainer.innerHTML = `
-                <div style="padding: 3rem; text-align: center; color: var(--text-light); background: #f8fafc; border-radius: var(--radius-md);">
-                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🖼️</div>
-                    <div style="font-size: 0.8125rem;">กำลังโหลดรูปภาพ...</div>
-                </div>
+            imgBox.style.display = 'block';
+            const status = document.createElement('div');
+            status.className = 'img-status';
+            status.style.cssText = 'padding: 4rem 2rem; text-align: center; color: var(--text-light); background: #f8fafc; border-radius: var(--radius-md);';
+            status.innerHTML = `
+                <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🖼️</div>
+                <div style="font-size: 0.8125rem; font-weight: 500;">กำลังโหลดรูปจากคลาวด์...</div>
             `;
+            imgBox.appendChild(status);
         } else {
             img.style.display = 'none';
-            imgContainer.style.display = 'none';
+            imgBox.style.display = 'none';
         }
     },
 
