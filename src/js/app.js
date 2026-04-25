@@ -206,6 +206,10 @@ const App = {
         itemsList.appendChild(itemCard);
     },
 
+    toggleTheme() {
+        UI.toggleTheme();
+    },
+
     handleImageFile(input) {
         if (!input.files || !input.files[0]) return;
         const file = input.files[0];
