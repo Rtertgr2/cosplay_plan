@@ -1,150 +1,123 @@
 /**
  * API Module — Communicates with the Google Apps Script Backend
- * 
- * Usage:
- *   1. Deploy the GAS Code.gs as a Web App
- *   2. Set GAS_URL below to the deployed URL
- *   3. All State operations will automatically sync with Google Sheets
  */
 
 const API = {
-    // ⚠️ Replace this with your deployed GAS Web App URL
-    GAS_URL: 'https://script.google.com/macros/s/AKfycbytE0dk5N_51L7kNJC3zRYb9Z96caJmptqDzFEL8qtaNjMD7pM_1_Xlp8qzAEijz7Gs7A/exec',
+    // URL สำหรับเชื่อมต่อกับ Google Apps Script
+    GAS_URL: window.API_BASE_URL || 'https://script.google.com/macros/s/AKfycbytE0dk5N_51L7kNJC3zRYb9Z96caJmptqDzFEL8qtaNjMD7pM_1_Xlp8qzAEijz7Gs7A/exec',
 
-    /**
-     * Check if API is configured
-     */
     isConfigured() {
-        return this.GAS_URL && this.GAS_URL.length > 10;
+        return !!this.GAS_URL && this.GAS_URL.length > 10 && !this.GAS_URL.includes('YOUR_GAS_URL');
     },
 
     /**
-     * GET: Fetch all projects (lightweight — no Base64 images)
+     * Build URL with query parameters for GAS
      */
-    async fetchAll() {
-        if (!this.isConfigured()) return null;
-
-        try {
-            const url = `${this.GAS_URL}?action=list`;
-            const response = await fetch(url);
-            const result = await response.json();
-
-            if (result.success) {
-                return result.data;
-            } else {
-                console.error('API fetchAll error:', result.error);
-                return null;
+    buildUrl(action, params = {}) {
+        const url = new URL(this.GAS_URL);
+        url.searchParams.set('action', action);
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== undefined && value !== null) {
+                url.searchParams.set(key, value);
             }
+        }
+        return url.toString();
+    },
+
+    /**
+     * GET request to GAS
+     */
+    async getRequest(action, params = {}) {
+        const url = this.buildUrl(action, params);
+        console.log(`🌐 API Calling (GET): ${action}`, params);
+        
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                redirect: 'follow'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data;
         } catch (error) {
-            console.error('API fetchAll failed:', error);
-            return null;
+            console.error(`❌ API GET failed (${action}):`, error);
+            return { success: false, error: error.message };
         }
     },
 
     /**
-     * GET: Fetch a single project with full data (including Base64 image)
-     * This is the "Lazy Load Round 2"
+     * POST request to GAS
+     * Note: We don't set Content-Type header to avoid CORS preflight (OPTIONS)
      */
-    async fetchById(projectId) {
-        if (!this.isConfigured()) return null;
-
+    async postRequest(action, data = {}) {
+        console.log(`🌐 API Calling (POST): ${action}`, data);
+        
         try {
-            const url = `${this.GAS_URL}?action=get&id=${encodeURIComponent(projectId)}`;
-            const response = await fetch(url);
-            const result = await response.json();
-
-            if (result.success) {
-                return result.data;
-            } else {
-                console.error('API fetchById error:', result.error);
-                return null;
+            const response = await fetch(this.GAS_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                body: JSON.stringify({ action, data })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
+            const result = await response.json();
+            return result;
         } catch (error) {
-            console.error('API fetchById failed:', error);
-            return null;
+            console.error(`❌ API POST failed (${action}):`, error);
+            return { success: false, error: error.message };
         }
     },
 
-    /**
-     * POST: Create a new project
-     */
+    // ==========================================
+    //  API Methods
+    // ==========================================
+
+    async list() {
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.getRequest('list');
+    },
+
+    async get(id) {
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.getRequest('get', { id });
+    },
+
+    async search(query) {
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.getRequest('search', { q: query });
+    },
+
     async create(projectData) {
-        if (!this.isConfigured()) return null;
-
-        try {
-            const response = await fetch(this.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' }, // GAS requirement for CORS
-                body: JSON.stringify({
-                    action: 'create',
-                    data: projectData
-                })
-            });
-            const result = await response.json();
-
-            if (!result.success) {
-                console.error('API create error:', result.error);
-            }
-            return result;
-        } catch (error) {
-            console.error('API create failed:', error);
-            return { success: false, error: error.message };
-        }
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.postRequest('create', projectData);
     },
 
-    /**
-     * POST: Update an existing project
-     */
-    async update(projectData) {
-        if (!this.isConfigured()) return null;
-
-        try {
-            const response = await fetch(this.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    action: 'update',
-                    data: projectData
-                })
-            });
-            const result = await response.json();
-
-            if (!result.success) {
-                console.error('API update error:', result.error);
-            }
-            return result;
-        } catch (error) {
-            console.error('API update failed:', error);
-            return { success: false, error: error.message };
-        }
+    async update(projectId, projectData) {
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.postRequest('update', { ...projectData, id: projectId });
     },
 
-    /**
-     * POST: Delete a project
-     */
-    async remove(projectId) {
-        if (!this.isConfigured()) return null;
+    async delete(projectId) {
+        if (!this.isConfigured()) return { success: false, error: 'API not configured' };
+        return await this.postRequest('delete', { id: projectId });
+    },
 
-        try {
-            const response = await fetch(this.GAS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({
-                    action: 'delete',
-                    data: { id: projectId }
-                })
-            });
-            const result = await response.json();
-
-            if (!result.success) {
-                console.error('API delete error:', result.error);
-            }
-            return result;
-        } catch (error) {
-            console.error('API delete failed:', error);
-            return { success: false, error: error.message };
-        }
+    // Lightweight list for local operations
+    getLocalList() {
+        return State.getAll().sort((a, b) => {
+            const aDate = new Date(a.updatedAt || 0);
+            const bDate = new Date(b.updatedAt || 0);
+            return bDate - aDate;
+        });
     }
 };
 
 window.API = API;
+console.log('✅ API Module initialized');

@@ -1,0 +1,21 @@
+# Image files (stored in Google Sheets, should not be tracked)
+*/images/**
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+
+# Temporary files
+*.tmp
+*.temp
+Thumbs.db
+.DS_Store
+
+# Node modules (if used)
+node_modules/
+
+# Environment files
+.env
+.env.local

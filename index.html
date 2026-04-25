@@ -1,241 +1,254 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosplay Planner | Workshop</title>
-    
-    <!-- Fonts -->
+    <title>Cosplay Planner — Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Styles -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="src/style.css">
 </head>
 
 <body>
-
-    <!-- Toast Container -->
     <div id="toastContainer"></div>
 
-    <!-- Header Navigation -->
-    <header class="glass" style="position: sticky; top: 0; z-index: 100; background: white;">
-        <div class="container" style="height: 4rem; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;" onclick="window.UI.switchView('viewDashboard')">
-                <div style="width: 2rem; height: 2rem; border-radius: 6px; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white;">
-                    <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                </div>
-                <h1 style="font-size: 1.125rem; font-weight: 800; tracking: -0.025em;">Cosplay Planner</h1>
-            </div>
-            <div style="display: flex; gap: 0.5rem;">
-                <button id="navDashboard" class="btn btn-ghost" onclick="window.UI.switchView('viewDashboard')">Dashboard</button>
-                <button class="btn btn-primary" onclick="window.App.createNewProject()">Create Project</button>
-            </div>
-        </div>
-    </header>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p class="loading-text">กำลังโหลดข้อมูล...</p>
+    </div>
 
-    <main class="container" style="padding-top: 2.5rem; padding-bottom: 5rem;">
-
-        <!-- DASHBOARD VIEW -->
-        <div id="viewDashboard">
-            <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 2rem;">
-                <div>
-                    <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Workspace</h2>
-                    <p style="font-size: 0.875rem; color: var(--text-muted);">จัดการโปรเจกต์คอสเพลย์ทั้งหมดของคุณ</p>
+    <div class="app-container glass">
+        <!-- ========== HEADER ========== -->
+        <header class="glass header-glass" style="position: sticky; top: 0; z-index: 100;">
+            <div class="container"
+                style="height: 3.5rem; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;"
+                    onclick="window.UI.switchView('viewDashboard')">
+                    <div
+                        style="width: 2.5rem; height: 2.5rem; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--primary), #8b5cf6); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);">
+                        <svg style="width: 1.5rem; height: 1.5rem;" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9" />
+                        </svg>
+                    </div>
+                    <h1 style="font-size: 1.25rem; font-weight: 700;">Cosplay Planner</h1>
                 </div>
-            </div>
-
-            <!-- Stats Bar -->
-            <div class="card" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 2.5rem;">
-                <div style="padding: 1.25rem; border-right: 1px solid var(--border); text-align: center;">
-                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem; text-transform: uppercase;">Total</p>
-                    <p id="statTotal" style="font-size: 1.25rem; font-weight: 700;">0</p>
-                </div>
-                <div style="padding: 1.25rem; border-right: 1px solid var(--border); text-align: center;">
-                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem; text-transform: uppercase;">Active</p>
-                    <p id="statActive" style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">0</p>
-                </div>
-                <div style="padding: 1.25rem; border-right: 1px solid var(--border); text-align: center;">
-                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem; text-transform: uppercase;">Done</p>
-                    <p id="statCompleted" style="font-size: 1.25rem; font-weight: 700; color: var(--success);">0</p>
-                </div>
-                <div style="padding: 1.25rem; text-align: center;">
-                    <p style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem; text-transform: uppercase;">Budget</p>
-                    <p id="statBudget" style="font-size: 1.25rem; font-weight: 700;">฿0</p>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button onclick="window.App.createNewProject()" class="btn btn-primary"
+                        style="padding: 0.5rem 1rem; font-size: 0.875rem;">+ สร้างโปรเจกต์</button>
+                    <button id="themeToggle" class="btn btn-ghost" style="font-size: 1.25rem;"
+                        onclick="window.App.toggleTheme()" title="Toggle Theme">🌙</button>
                 </div>
             </div>
+        </header>
 
-            <div id="projectGrid" class="grid grid-cols-1 grid-cols-2 grid-cols-3"></div>
+        <!-- ========== VIEWS ========== -->
 
-            <!-- Empty State -->
-            <div id="emptyState" class="hidden" style="text-align: center; padding: 6rem 0;">
-                <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.2;">📭</div>
-                <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem;">ยังไม่มีโปรเจกต์</h3>
-                <p style="font-size: 0.875rem; color: var(--text-light); margin-bottom: 1.5rem;">เริ่มต้นบันทึกแผนคอสเพลย์ชุดแรกของคุณ</p>
-                <button class="btn btn-primary" onclick="window.App.createNewProject()">Create Your First Project</button>
+        <section id="viewDashboard" class="container" style="padding: 2rem;">
+            <div class="grid-4-col grid-2-col" style="gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="stat-card">
+                    <span class="stat-icon">📊</span>
+                    <span class="stat-number" id="statTotal">0</span>
+                    <span class="stat-label">โปรเจกต์ทั้งหมด</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon">🔨</span>
+                    <span class="stat-number" id="statActive">0</span>
+                    <span class="stat-label">กำลังดำเนินการ</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon">✅</span>
+                    <span class="stat-number" id="statCompleted">0</span>
+                    <span class="stat-label">เสร็จสมบูรณ์</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon">💰</span>
+                    <span class="stat-number" id="statBudget">฿0</span>
+                    <span class="stat-label">งบประมาณรวม</span>
+                </div>
             </div>
-        </div>
 
-        <!-- CREATE/EDIT PROJECT VIEW -->
-        <div id="viewCreate" class="hidden">
-            <div style="max-width: 720px; margin: 0 auto;">
-                <header style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;">
-                    <button onclick="window.UI.switchView('viewDashboard')" class="btn btn-secondary" style="padding: 0.5rem; width: 2.25rem; height: 2.25rem;">←</button>
-                    <h2 id="formTitle" style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">Create Project</h2>
-                </header>
+            <div
+                style="background: var(--surface); border-radius: var(--radius-xl); padding: 1rem; margin-bottom: 2rem; box-shadow: var(--shadow-sm);">
+                <div class="search-filter-bar">
+                    <input type="text" id="searchInput" placeholder="🔍 ค้นหาชื่อตัวละคร / ซีรีส์ / คอมน..."
+                        oninput="window.App.handleSearch(this.value)">
+                    <select id="statusFilter" onchange="window.App.handleFilter(this.value)">
+                        <option value="">สถานะทั้งหมด</option>
+                        <option value="planning">📋 วางแผนอยู่</option>
+                        <option value="active">🔨 กำลังดำเนินการ</option>
+                        <option value="waiting">⏳ กำลังรอของ</option>
+                        <option value="completed">✅ เสร็จสิ้น</option>
+                        <option value="cancelled">❌ ยกเลิก</option>
+                    </select>
+                </div>
+            </div>
 
-                <form id="projectForm" onsubmit="event.preventDefault()">
-                    <div class="card" style="padding: 2rem; margin-bottom: 2rem;">
-                        <h3 style="font-size: 0.875rem; font-weight: 700; color: var(--text-muted); margin-bottom: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">ข้อมูลพื้นฐาน</h3>
-                        
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
-                            <div>
-                                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted);">ชื่อตัวละคร</label>
-                                <input type="text" id="charName" class="input-field" placeholder="เช่น 2B, Yor Forger">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted);">จากเรื่อง / ซีรีส์</label>
-                                <input type="text" id="seriesName" class="input-field" placeholder="เช่น NieR, Spy x Family">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted);">งบประมาณรวม (฿)</label>
-                                <input type="number" id="totalBudget" class="input-field" placeholder="0">
-                            </div>
-                            <div>
-                                <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted);">สถานะปัจจุบัน</label>
-                                <select id="projectStatus" class="input-field">
-                                    <option value="planning">📋 วางแผน</option>
-                                    <option value="in-progress">🔨 กำลังดำเนินการ</option>
-                                    <option value="waiting">⏳ รอของ / ขนส่ง</option>
-                                    <option value="completed">✅ เสร็จสมบูรณ์</option>
-                                    <option value="cancelled">❌ ยกเลิก</option>
-                                </select>
-                            </div>
+            <div id="projectGrid" class="grid-2-col" style="gap: 1.5rem;">
+            </div>
+        </section>
+
+        <section id="viewCreate" class="container" style="padding: 2rem;" hidden>
+            <h1 id="formTitle" style="margin-bottom: 1.5rem;">สร้างโปรเจกต์ใหม่</h1>
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <form onsubmit="return false;">
+                    <div class="card"
+                        style="margin-bottom: 1.5rem; padding: 1.5rem; background: var(--primary-bg); border-color: var(--primary);">
+                        <h3 style="font-size: 1.125rem; margin-bottom: 0.75rem;">📸 อัพโหลดรูปภาพ / ใส่ลิงค์</h3>
+                        <div id="uploadArea" class="border-2-dashed"
+                            style="border: 2px dashed var(--primary); border-radius: var(--radius-lg); padding: 2rem; text-align: center; cursor: pointer; margin-bottom: 1rem;"
+                            onclick="document.getElementById('imageInput').click()">
+                            <p style="margin-bottom: 0.5rem;">📁 คลิกเพื่อเลือกไฟล์ หรือนำรูปภาพมาวางที่นี้</p>
+                            <p style="font-size: 0.875rem; color: var(--text-muted);">รองรับ JPG, PNG, GIF (สูงสุด 5MB)
+                            </p>
                         </div>
-
-                        <div style="margin-bottom: 1.25rem;">
-                            <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.375rem; color: var(--text-muted);">หมายเหตุเพิ่มเติม</label>
-                            <textarea id="projectNote" class="input-field" rows="2" style="resize: none;" placeholder="รายละเอียดสเปกชุด โทนสี หรือสิ่งที่ต้องระวัง..."></textarea>
+                        <input type="file" id="imageInput" accept="image/*" hidden
+                            onchange="window.App.handleImageFile(this)">
+                        <div id="imagePreview" style="margin-bottom: 0.75rem; display: none;">
+                            <img id="previewImg"
+                                style="max-width: 100%; border-radius: var(--radius-md); max-height: 300px; object-fit: cover;">
                         </div>
-
-                        <div>
-                            <label style="display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-muted);">รูปภาพอ้างอิง (Reference)</label>
-                            
-                            <!-- Tab Switcher -->
-                            <div style="display: flex; gap: 0; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;">
-                                <button type="button" id="tabUpload" onclick="window.App.switchImageTab('upload')" style="flex: 1; padding: 0.5rem; font-size: 0.8125rem; font-weight: 600; background: var(--primary); color: white; border: none; cursor: pointer;">📤 อัปโหลดไฟล์</button>
-                                <button type="button" id="tabUrl" onclick="window.App.switchImageTab('url')" style="flex: 1; padding: 0.5rem; font-size: 0.8125rem; font-weight: 600; background: white; color: var(--text-muted); border: none; cursor: pointer;">🔗 ใส่ URL รูป</button>
-                            </div>
-
-                            <!-- Upload Mode -->
-                            <div id="imageTabUpload">
-                                <div id="uploadTrigger" onclick="document.getElementById('imageInput').click()" style="border: 2px dashed var(--border); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s;">
-                                    <p style="font-size: 0.8125rem; font-weight: 600; color: var(--text-muted);">Click to upload</p>
-                                    <p style="font-size: 0.75rem; color: var(--text-light);">PNG, JPG, WEBP</p>
-                                    <input type="file" id="imageInput" class="hidden" accept="image/*">
-                                </div>
-                            </div>
-
-                            <!-- URL Mode -->
-                            <div id="imageTabUrl" class="hidden">
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <input type="url" id="imageUrlInput" class="input-field" placeholder="https://example.com/image.jpg" style="flex: 1;">
-                                    <button type="button" onclick="window.App.loadImageFromUrl()" class="btn btn-primary" style="white-space: nowrap;">โหลดรูป</button>
-                                </div>
-                                <p style="font-size: 0.6875rem; color: var(--text-light); margin-top: 0.375rem;">วาง URL ของรูปภาพที่ต้องการใช้เป็น Reference</p>
-                            </div>
-
-                            <!-- Preview (shared) -->
-                            <div id="imagePreviewBox" class="hidden" style="margin-top: 1rem; display: flex; gap: 1rem; align-items: flex-start;">
-                                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; width: 120px; flex-shrink: 0;">
-                                    <img id="imagePreview" style="width: 100%; height: 120px; object-fit: cover;" alt="Preview">
-                                </div>
-                                <div>
-                                    <div id="imageProcessingInfo" style="font-size: 0.75rem; color: var(--text-muted); line-height: 1.5;"></div>
-                                    <button type="button" onclick="window.App.clearImage()" style="margin-top: 0.5rem; background: none; border: none; color: var(--error); font-size: 0.75rem; cursor: pointer; font-weight: 600;">✕ ลบรูปภาพ</button>
-                                </div>
-                            </div>
+                        <div style="display: none;">
+                            <input type="text" id="imageUrl" placeholder="หรือวางลิงค์รูปภาพออนไลน์ที่นี่..."
+                                onchange="window.App.setImageFromUrl()">
                         </div>
                     </div>
 
-                    <!-- Items Section -->
-                    <div style="margin-bottom: 3rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
-                            <div>
-                                <h3 style="font-size: 0.875rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">รายการไอเทม</h3>
-                            </div>
-                            <div style="text-align: right; font-size: 0.8125rem;">
-                                <span style="color: var(--text-muted);">รวมใช้จ่าย: </span>
-                                <span id="itemTotal" style="font-weight: 700; color: var(--primary);">฿0</span>
-                                <span style="color: var(--text-light);"> / </span>
-                                <span id="budgetDisplay" style="color: var(--text-muted);">฿0</span>
-                                <span id="budgetPercent" style="font-weight: 600; margin-left: 0.5rem;">(0%)</span>
-                            </div>
+                    <div class="grid-2-col grid-1-col" style="gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="flex: 2;">
+                            <label
+                                style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">ชื่อตัวละคร
+                                *</label>
+                            <input type="text" id="charName" placeholder="เช่น Makima, Power, etc." required
+                                oninput="window.App.updateFormTitle(this.value)">
                         </div>
-                        
-                        <div style="width: 100%; background: #e2e8f0; height: 4px; border-radius: 99px; overflow: hidden; margin-bottom: 1.5rem;">
-                            <div id="budgetProgress" style="height: 100%; width: 0%; background: var(--primary); transition: width 0.4s;"></div>
+                        <div style="flex: 1;">
+                            <label
+                                style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">งบประมาณ
+                                (บาท)</label>
+                            <input type="number" id="budget" placeholder="1500" min="0" step="1" required
+                                oninput="window.App.updateFormTitle(this.value)">
                         </div>
-
-                        <div id="itemsList"></div>
-
-                        <button onclick="window.App.addItem()" class="btn btn-secondary" style="width: 100%; margin-top: 1rem; border-style: dashed;">+ เพิ่มไอเทมใหม่</button>
                     </div>
 
-                    <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                        <button onclick="window.UI.switchView('viewDashboard')" class="btn btn-ghost">ยกเลิก</button>
-                        <button onclick="window.App.saveProject()" class="btn btn-primary" style="min-width: 120px;">บันทึกโปรเจกต์</button>
+                    <div style="margin-bottom: 1.5rem;">
+                        <label
+                            style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">ชื่อซีรีส์</label>
+                        <input type="text" id="seriesName" placeholder="เช่น Chainsaw Man, Tokyo Revengers"
+                            oninput="window.App.updateFormTitle(this.value)">
                     </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label
+                            style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">สถานะ
+                            *</label>
+                        <select id="status" onchange="window.App.updateStatusBadge()">
+                            <option value="planning">📋 วางแผนอยู่</option>
+                            <option value="active">🔨 กำลังดำเนินการ</option>
+                            <option value="waiting">⏳ กำลังรอของ</option>
+                            <option value="completed">✅ เสร็จสิ้น</option>
+                            <option value="cancelled">❌ ยกเลิก</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label
+                            style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem;">บันทึกย่อ</label>
+                        <textarea id="note" rows="4" placeholder="บันทึกเพิ่มเติมเกี่ยวกับโปรเจกต์นี้..."></textarea>
+                    </div>
+
+                    <button onclick="window.App.addItem()" class="btn btn-primary"
+                        style="margin-top: 1.5rem; width: 100%;" id="addItemButton">+ เพิ่มสินค้า</button>
+
+                    <div id="itemsList" style="margin-top: 1.5rem;">
+                    </div>
+
+                    <button onclick="window.App.saveProject()" class="btn btn-primary"
+                        style="margin-top: 2rem; width: 100%; font-size: 1.125rem;">💾 บันทึกโปรเจกต์</button>
+
                 </form>
             </div>
-        </div>
+        </section>
 
-        <!-- PROJECT DETAIL VIEW -->
-        <div id="viewDetail" class="hidden">
-            <div style="max-width: 800px; margin: 0 auto;">
-                <header style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2.5rem;">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <button onclick="window.UI.switchView('viewDashboard')" class="btn btn-secondary" style="padding: 0.5rem; width: 2.25rem; height: 2.25rem;">←</button>
-                        <div>
-                            <h2 id="detailChar" style="font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">Character</h2>
-                            <p id="detailSeries" style="font-size: 0.875rem; color: var(--text-muted);">Series Name</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <span id="detailStatus" class="badge">Status</span>
-                        <button onclick="window.App.editCurrentProject()" class="btn btn-secondary">Edit</button>
-                        <button onclick="window.App.deleteCurrentProject()" class="btn btn-secondary" style="color: var(--error);">Delete</button>
-                    </div>
-                </header>
+        <section id="viewDetail" class="container" style="padding: 2rem;" hidden>
+            <!-- Back Button -->
+            <button onclick="window.UI.switchView('viewDashboard')" class="btn btn-ghost"
+                style="margin-bottom: 1.5rem; padding: 0.5rem 1rem;">
+                ← กลับหน้า Dashboard
+            </button>
 
-                <div class="grid grid-cols-1 grid-cols-2">
-                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-                        <div class="card" style="padding: 0.5rem;">
-                            <img id="detailImage" style="width: 100%; border-radius: calc(var(--radius-lg) - 0.5rem); display: block; object-fit: contain; background: #f8fafc;" alt="Reference">
-                        </div>
-                        <div class="card" style="padding: 1.5rem;">
-                            <h4 style="font-size: 0.75rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Notes & Details</h4>
-                            <p id="detailNote" style="font-size: 0.875rem; color: var(--text-muted); line-height: 1.6; white-space: pre-wrap;"></p>
-                        </div>
-                    </div>
-                    <div class="card" style="padding: 1.5rem; height: fit-content;">
-                        <h4 style="font-size: 0.75rem; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1.5rem;">Inventory & Progress</h4>
-                        <div id="detailItemsList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
-                    </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h1 id="detailCharacter" style="font-size: 1.75rem; font-weight: 800; color: var(--text-main);">—</h1>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="window.App.editProject(window.State.currentEditId)" class="btn btn-secondary" style="background: var(--primary-bg); color: var(--primary);">
+                        ✏️ แก้ไขโปรเจกต์
+                    </button>
+                    <button onclick="window.App.deleteProject(window.State.currentEditId)" class="btn btn-danger" style="background: var(--error); color: white;">
+                        🗑️ ลบโปรเจกต์
+                    </button>
                 </div>
             </div>
-        </div>
 
-    </main>
+            <div class="grid-2-col" style="gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card" style="padding: 1.5rem;">
+                    <p style="font-size: 0.875rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">
+                        ซีรีส์</p>
+                    <p id="detailSeries" style="font-size: 1.125rem;">—</p>
+                </div>
+                <div class="card" style="padding: 1.5rem;">
+                    <p style="font-size: 0.875rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.25rem;">
+                        งบประมาณ</p>
+                    <p id="detailBudget" style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">—</p>
+                </div>
+            </div>
 
-    <!-- Scripts -->
-    <script src="src/js/api.js"></script>
+            <div class="card" style="margin-bottom: 1.5rem; overflow: hidden;">
+                <div id="detailImageContainer">
+                    <img id="detailImage" src="" alt="Character Image"
+                        style="max-width: 100%; max-height: 400px; object-fit: contain; display: none;">
+                    <div id="detailImagePlaceholder"
+                        style="display: flex; align-items: center; justify-content: center; padding: 3rem; color: var(--text-muted);">
+                        ยังไม่มีรูปภาพ</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+                <p style="font-size: 0.875rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">สถานะ
+                </p>
+                <span id="detailBadge" class="badge planning">—</span>
+            </div>
+
+            <div class="card" style="margin-bottom: 1.5rem; padding: 1.5rem;">
+                <p style="font-size: 0.875rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">
+                    บันทึกย่อ</p>
+                <p id="detailNote" style="font-size: 1rem; line-height: 1.6;">—</p>
+            </div>
+
+            <!-- Items List -->
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">📦 รายการสินค้า</h3>
+                <div id="detailItemsList">
+                    <p style="text-align: center; color: var(--text-muted); padding: 1rem;">ยังไม่มีรายการสินค้า</p>
+                </div>
+            </div>
+
+        </section>
+    </div>
+
+    <!-- Fixed JavaScript Files -->
     <script src="src/js/state.js"></script>
-    <script src="src/js/image.js"></script>
+    <script src="src/js/api.js"></script>
     <script src="src/js/ui.js"></script>
     <script src="src/js/app.js"></script>
+
 </body>
 
 </html>

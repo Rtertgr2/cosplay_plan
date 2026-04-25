@@ -1,9 +1,8 @@
 /**
- * State Management for Cosplay Planner
+ * State Management for Cosplay Planner — Fixed Version
  * 
- * Supports two modes:
- * - Offline: localStorage only (when GAS_URL is not configured)
- * - Online: localStorage + Google Sheets sync via API
+ * State เป็น local-only data manager
+ * การ sync กับ cloud จัดการผ่าน API module ใน api_fixed.js
  */
 
 const State = {
@@ -13,177 +12,105 @@ const State = {
     tempItems: [],
     tempBase64Image: null,
     tempImageInfo: null,
-    syncing: false,
 
-    /**
-     * Initialize state — Load from localStorage first, then try API
-     */
-    async init() {
-        // Always load from localStorage first for instant display
+    init() {
         this.loadFromLocal();
-
-        // Then attempt to sync from API if configured
-        if (window.API && window.API.isConfigured()) {
-            await this.syncFromAPI();
-        }
     },
 
-    /**
-     * Load projects from localStorage
-     */
     loadFromLocal() {
         try {
-            const data = localStorage.getItem('cosplayProjects');
-            if (data) {
-                this.projects = JSON.parse(data);
+            const stored = localStorage.getItem("cosplayProjects");
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // Ensure it's always an array
+                this.projects = Array.isArray(parsed) ? parsed : [];
+            } else {
+                this.projects = [];
             }
-        } catch (e) {
-            console.error('Failed to load from localStorage', e);
+        } catch (error) {
+            console.error("Failed to load from localStorage:", error);
             this.projects = [];
         }
     },
 
-    /**
-     * Save projects to localStorage
-     */
     saveToLocal() {
         try {
-            localStorage.setItem('cosplayProjects', JSON.stringify(this.projects));
+            localStorage.setItem("cosplayProjects", JSON.stringify(this.projects));
             return true;
-        } catch (e) {
-            console.error('LocalStorage save failed', e);
+        } catch (error) {
+            console.error("Failed to save to localStorage:", error);
             return false;
         }
     },
 
-    /**
-     * Sync project list from API (Round 1: no images)
-     */
-    async syncFromAPI() {
-        if (!window.API || !window.API.isConfigured()) return;
-
-        this.syncing = true;
-        try {
-            const apiProjects = await window.API.fetchAll();
-            if (apiProjects) {
-                this.projects = apiProjects;
-                this.saveToLocal();
-                window.UI.updateStats();
-                window.UI.renderProjects();
-            }
-        } catch (e) {
-            console.error('API sync failed', e);
-        } finally {
-            this.syncing = false;
+    add(project) {
+        // Safeguard: ensure projects is an array
+        if (!Array.isArray(this.projects)) {
+            console.warn("State.projects was not an array, resetting");
+            this.projects = [];
         }
-    },
-
-    /**
-     * Fetch full project details from API (Round 2: with images)
-     */
-    async fetchFullProject(projectId) {
-        if (!window.API || !window.API.isConfigured()) {
-            return this.getProject(projectId);
+        if (!project.id) {
+            project.id = "proj_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
         }
-
-        try {
-            const fullProject = await window.API.fetchById(projectId);
-            if (fullProject) {
-                // Update local cache
-                const idx = this.projects.findIndex(p => p.id === fullProject.id);
-                if (idx !== -1) {
-                    this.projects[idx] = fullProject;
-                }
-                this.saveToLocal();
-                return fullProject;
-            }
-        } catch (e) {
-            console.error('Failed to fetch full project', e);
-        }
-
-        // Fallback to local
-        return this.getProject(projectId);
-    },
-
-    /**
-     * Save — writes to localStorage + API
-     */
-    save() {
-        return this.saveToLocal();
-    },
-
-    /**
-     * Add a new project (local + API)
-     */
-    async addProject(project) {
-        this.projects.unshift(project);
+        if (!project.createdAt) project.createdAt = new Date().toISOString();
+        project.updatedAt = new Date().toISOString();
+        this.projects.push(project);
         this.saveToLocal();
-
-        // Async API sync — don't block the UI
-        if (window.API && window.API.isConfigured()) {
-            const result = await window.API.create(project);
-            if (result && !result.success) {
-                window.UI.showToast(result.error || 'API sync failed', 'error');
-            }
-        }
-
-        return true;
+        return project;
     },
 
-    /**
-     * Update an existing project (local + API)
-     */
-    async updateProject(projectId, projectData) {
-        const index = this.projects.findIndex(p => p.id === projectId);
+    update(project) {
+        const index = this.projects.findIndex(p => p.id === project.id);
         if (index !== -1) {
-            this.projects[index] = { ...this.projects[index], ...projectData };
+            project.updatedAt = new Date().toISOString();
+            this.projects[index] = { ...this.projects[index], ...project };
             this.saveToLocal();
-
-            if (window.API && window.API.isConfigured()) {
-                const result = await window.API.update(projectData);
-                if (result && !result.success) {
-                    window.UI.showToast(result.error || 'API sync failed', 'error');
-                }
-            }
-
-            return true;
+            return this.projects[index];
         }
-        return false;
+        console.warn("Project not found:", project.id);
+        return null;
     },
 
-    /**
-     * Delete a project (local + API)
-     */
-    async deleteProject(projectId) {
-        this.projects = this.projects.filter(p => p.id !== projectId);
-        this.saveToLocal();
-
-        if (window.API && window.API.isConfigured()) {
-            const result = await window.API.remove(projectId);
-            if (result && !result.success) {
-                window.UI.showToast(result.error || 'API sync failed', 'error');
-            }
+    delete(id) {
+        const index = this.projects.findIndex(p => p.id === id);
+        if (index !== -1) {
+            const removed = this.projects.splice(index, 1)[0];
+            this.saveToLocal();
+            return removed;
         }
-
-        return true;
+        console.warn("Project not found:", id);
+        return null;
     },
 
-    /**
-     * Get a project by ID from local state
-     */
-    getProject(projectId) {
-        return this.projects.find(p => p.id === projectId);
+    get(id) {
+        return this.projects.find(p => p.id === id) || null;
     },
 
-    /**
-     * Reset temporary state (for forms)
-     */
-    resetTemp() {
-        this.currentEditId = null;
-        this.tempItems = [];
-        this.tempBase64Image = null;
-        this.tempImageInfo = null;
+    getAll() {
+        return [...this.projects];
+    },
+
+    setImage(base64, info = {}) {
+        this.tempBase64Image = base64;
+        this.tempImageInfo = { ...info };
+    },
+
+    getEditId() {
+        return this.currentEditId || null;
+    },
+
+    setEditId(id) {
+        this.currentEditId = id || null;
+    },
+
+    getDetailId() {
+        return this.currentDetailId || null;
+    },
+
+    setDetailId(id) {
+        this.currentDetailId = id || null;
     }
 };
 
 window.State = State;
+console.log("✅ State Module initialized");

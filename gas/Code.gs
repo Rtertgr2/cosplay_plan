@@ -1,18 +1,16 @@
 /**
- * Cosplay Planner — Google Apps Script Database API
+ * Cosplay Planner — Google Apps Script Database API (Fixed & Optimized)
  * 
- * Deploy: Extensions → Apps Script → Deploy → New Deployment → Web App
- * Execute as: Me | Access: Anyone
- * 
- * Sheet Structure:
- * | ProjectID | Character | Series | Budget | Status | Note | Items_JSON | Base64_Image | CreatedAt | UpdatedAt |
+ * วิธี Deploy:
+ * 1. ไปที่ Extensions → Apps Script
+ * 2. วางโค้ดนี้ลงไป
+ * 3. กด Deploy → New Deployment
+ * 4. เลือกประเภทเป็น "Web App"
+ * 5. ตั้งค่า "Execute as: Me" และ "Who has access: Anyone" (สำคัญมาก)
+ * 6. กด Deploy และคัดลอก Web App URL มาใส่ใน api_fixed.js
  */
 
-// ============ CONFIG ============
 const SHEET_NAME = 'Projects';
-const BASE64_MAX_LENGTH = 50000;
-
-// ============ HELPERS ============
 
 /**
  * Get or create the data sheet with headers
@@ -20,84 +18,96 @@ const BASE64_MAX_LENGTH = 50000;
 function getSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
-
+  
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow([
       'ProjectID', 'Character', 'Series', 'Budget', 'Status',
       'Note', 'Items_JSON', 'Base64_Image', 'CreatedAt', 'UpdatedAt'
     ]);
-    // Freeze header row
     sheet.setFrozenRows(1);
   }
-
   return sheet;
 }
 
 /**
- * Build a JSON response with CORS headers
+ * Build a JSON response (GAS will handle CORS automatically)
  */
-function makeResponse(data, statusCode) {
-  const output = ContentService.createTextOutput(JSON.stringify(data));
-  output.setMimeType(ContentService.MimeType.JSON);
-  return output;
+function makeResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
- * Find a row index by ProjectID (1-based, including header)
- * Returns -1 if not found
- */
-function findRowByProjectId(sheet, projectId) {
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(projectId)) {
-      return i + 1; // 1-based row number
-    }
-  }
-  return -1;
-}
-
-// ============ doGet ============
-
-/**
- * GET endpoint
- * 
- * ?action=list           → Return basic project list (no Base64)
- * ?action=get&id=xxx     → Return full project data including Base64
+ * Handle GET requests
  */
 function doGet(e) {
   try {
     const action = (e.parameter && e.parameter.action) || 'list';
     const sheet = getSheet();
-
+    
     if (action === 'get' && e.parameter.id) {
-      return getProjectById(sheet, e.parameter.id);
+      return makeResponse(getProjectById(sheet, e.parameter.id));
+    } 
+    if (action === 'search') {
+      return makeResponse(searchProjects(sheet, e.parameter.q || ''));
     }
-
-    // Default: list all (lightweight, no Base64)
-    return listProjects(sheet);
-
+    
+    // Default: list all
+    return makeResponse(listProjects(sheet));
   } catch (error) {
     return makeResponse({ success: false, error: error.message });
   }
 }
 
 /**
- * List all projects — lightweight (excludes Base64_Image)
+ * Handle POST requests
  */
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return makeResponse({ success: false, error: 'No data received' });
+    }
+    
+    const body = JSON.parse(e.postData.contents);
+    const action = body.action || 'create';
+    const data = body.data || {};
+    const sheet = getSheet();
+    
+    switch (action) {
+      case 'create':
+        return makeResponse(createProject(sheet, data));
+      case 'update':
+        return makeResponse(updateProject(sheet, data));
+      case 'delete':
+        const idToDelete = typeof data === 'string' ? data : data.id;
+        return makeResponse(deleteProject(sheet, idToDelete));
+      default:
+        return makeResponse({ success: false, error: 'Unknown action: ' + action });
+    }
+  } catch (error) {
+    return makeResponse({ success: false, error: error.message });
+  }
+}
+
+// ===========================
+//  Database Operations
+// ===========================
+
 function listProjects(sheet) {
-  const data = sheet.getDataRange().getValues();
-  const projects = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    // Skip empty rows
-    if (!row[0]) continue;
-
+  const values = sheet.getDataRange().getValues();
+  values.shift(); // Remove header row
+  
+  const projects = values.filter(row => row[0]).map(row => {
     let items = [];
-    try { items = JSON.parse(row[6] || '[]'); } catch (e) { items = []; }
-
-    projects.push({
+    try {
+      items = JSON.parse(row[6] || '[]');
+    } catch (e) {
+      console.log('Error parsing items for project ' + row[0]);
+      items = [];
+    }
+    
+    return {
       id: String(row[0]),
       charName: row[1] || '',
       seriesName: row[2] || '',
@@ -105,196 +115,103 @@ function listProjects(sheet) {
       status: row[4] || 'planning',
       note: row[5] || '',
       items: items,
-      hasImage: !!row[7],        // Boolean flag instead of full Base64
+      base64Image: row[7] || '',
+      hasImage: !!row[7],
       createdAt: row[8] || '',
       updatedAt: row[9] || ''
-    });
-  }
-
-  return makeResponse({ success: true, data: projects });
+    };
+  });
+  
+  // Sort by updatedAt descending
+  projects.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  
+  return { success: true, data: projects };
 }
 
-/**
- * Get a single project by ID — full data including Base64
- */
-function getProjectById(sheet, projectId) {
-  const rowIdx = findRowByProjectId(sheet, projectId);
-
-  if (rowIdx === -1) {
-    return makeResponse({ success: false, error: 'Project not found' });
-  }
-
-  const row = sheet.getRange(rowIdx, 1, 1, 10).getValues()[0];
-
+function getProjectById(sheet, id) {
+  const values = sheet.getDataRange().getValues();
+  const row = values.find(r => String(r[0]) === String(id));
+  if (!row) return { success: false, error: 'Not found' };
+  
   let items = [];
-  try { items = JSON.parse(row[6] || '[]'); } catch (e) { items = []; }
-
-  const project = {
-    id: String(row[0]),
-    charName: row[1] || '',
-    seriesName: row[2] || '',
-    budget: Number(row[3]) || 0,
-    status: row[4] || 'planning',
-    note: row[5] || '',
-    items: items,
-    base64Image: row[7] || null,  // Full Base64 in Round 2
-    createdAt: row[8] || '',
-    updatedAt: row[9] || ''
-  };
-
-  return makeResponse({ success: true, data: project });
-}
-
-// ============ doPost ============
-
-/**
- * POST endpoint
- * 
- * Body JSON:
- * {
- *   "action": "create" | "update" | "delete",
- *   "data": { ... project fields ... }
- * }
- */
-function doPost(e) {
   try {
-    const body = JSON.parse(e.postData.contents);
-    const action = body.action || 'create';
-    const sheet = getSheet();
-
-    switch (action) {
-      case 'create':
-        return createProject(sheet, body.data);
-      case 'update':
-        return updateProject(sheet, body.data);
-      case 'delete':
-        return deleteProject(sheet, body.data);
-      default:
-        return makeResponse({ success: false, error: 'Unknown action: ' + action });
-    }
-
-  } catch (error) {
-    return makeResponse({ success: false, error: error.message });
+    items = JSON.parse(row[6] || '[]');
+  } catch (e) {
+    items = [];
   }
+  
+  return {
+    success: true,
+    data: {
+      id: String(row[0]),
+      charName: row[1] || '',
+      seriesName: row[2] || '',
+      budget: Number(row[3]) || 0,
+      status: row[4] || 'planning',
+      note: row[5] || '',
+      items: items,
+      base64Image: row[7] || '',
+      createdAt: row[8] || '',
+      updatedAt: row[9] || ''
+    }
+  };
 }
 
-/**
- * Create a new project
- */
+function searchProjects(sheet, query) {
+  const all = listProjects(sheet).data;
+  const q = query.toLowerCase();
+  const filtered = all.filter(p => 
+    p.charName.toLowerCase().includes(q) || 
+    p.seriesName.toLowerCase().includes(q) || 
+    p.note.toLowerCase().includes(q)
+  );
+  return { success: true, data: filtered };
+}
+
 function createProject(sheet, data) {
-  if (!data || !data.charName) {
-    return makeResponse({ success: false, error: 'Character name is required' });
-  }
-
-  // Validate Base64 size
-  if (data.base64Image && data.base64Image.length > BASE64_MAX_LENGTH) {
-    return makeResponse({
-      success: false,
-      error: 'Image too large: ' + data.base64Image.length + ' characters. Maximum is ' + BASE64_MAX_LENGTH + ' characters. Please compress the image further.'
-    });
-  }
-
-  const projectId = data.id || Utilities.getUuid();
+  const id = data.id || Utilities.getUuid();
   const now = new Date().toISOString();
-
-  const itemsJson = JSON.stringify(data.items || []);
-
   sheet.appendRow([
-    projectId,
+    id,
     data.charName || '',
     data.seriesName || '',
-    Number(data.budget) || 0,
+    data.budget || 0,
     data.status || 'planning',
     data.note || '',
-    itemsJson,
+    JSON.stringify(data.items || []),
     data.base64Image || '',
     now,
     now
   ]);
-
-  return makeResponse({
-    success: true,
-    message: 'Project created',
-    id: projectId
-  });
+  return { success: true, id: id };
 }
 
-/**
- * Update an existing project
- */
 function updateProject(sheet, data) {
-  if (!data || !data.id) {
-    return makeResponse({ success: false, error: 'Project ID is required for update' });
-  }
-
-  // Validate Base64 size
-  if (data.base64Image && data.base64Image.length > BASE64_MAX_LENGTH) {
-    return makeResponse({
-      success: false,
-      error: 'Image too large: ' + data.base64Image.length + ' characters. Maximum is ' + BASE64_MAX_LENGTH + ' characters.'
-    });
-  }
-
-  const rowIdx = findRowByProjectId(sheet, data.id);
-  if (rowIdx === -1) {
-    return makeResponse({ success: false, error: 'Project not found: ' + data.id });
-  }
-
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex(r => String(r[0]) === String(data.id));
+  if (rowIndex === -1) return { success: false, error: 'Not found' };
+  
   const now = new Date().toISOString();
-  const existingRow = sheet.getRange(rowIdx, 1, 1, 10).getValues()[0];
-
-  const itemsJson = JSON.stringify(data.items || []);
-
-  const updatedRow = [
-    data.id,
-    data.charName || existingRow[1],
-    data.seriesName || existingRow[2],
-    Number(data.budget) || existingRow[3],
-    data.status || existingRow[4],
-    data.note !== undefined ? data.note : existingRow[5],
-    itemsJson,
-    data.base64Image !== undefined ? (data.base64Image || '') : existingRow[7],
-    existingRow[8],  // Keep original createdAt
-    now
-  ];
-
-  sheet.getRange(rowIdx, 1, 1, 10).setValues([updatedRow]);
-
-  return makeResponse({
-    success: true,
-    message: 'Project updated',
-    id: data.id
-  });
+  const rowNum = rowIndex + 1;
+  
+  // Update specific columns
+  sheet.getRange(rowNum, 2).setValue(data.charName || '');
+  sheet.getRange(rowNum, 3).setValue(data.seriesName || '');
+  sheet.getRange(rowNum, 4).setValue(data.budget || 0);
+  sheet.getRange(rowNum, 5).setValue(data.status || 'planning');
+  sheet.getRange(rowNum, 6).setValue(data.note || '');
+  sheet.getRange(rowNum, 7).setValue(JSON.stringify(data.items || []));
+  if (data.base64Image) sheet.getRange(rowNum, 8).setValue(data.base64Image);
+  sheet.getRange(rowNum, 10).setValue(now);
+  
+  return { success: true, id: data.id };
 }
 
-/**
- * Delete a project
- */
-function deleteProject(sheet, data) {
-  if (!data || !data.id) {
-    return makeResponse({ success: false, error: 'Project ID is required for delete' });
-  }
-
-  const rowIdx = findRowByProjectId(sheet, data.id);
-  if (rowIdx === -1) {
-    return makeResponse({ success: false, error: 'Project not found: ' + data.id });
-  }
-
-  sheet.deleteRow(rowIdx);
-
-  return makeResponse({
-    success: true,
-    message: 'Project deleted',
-    id: data.id
-  });
-}
-
-// ============ UTILITY: Manual Setup ============
-
-/**
- * Run this once to create the sheet with headers
- */
-function setupSheet() {
-  getSheet();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Sheet "Projects" is ready!', 'Setup Complete');
+function deleteProject(sheet, id) {
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex(r => String(r[0]) === String(id));
+  if (rowIndex === -1) return { success: false, error: 'Not found' };
+  
+  sheet.deleteRow(rowIndex + 1);
+  return { success: true };
 }

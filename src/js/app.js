@@ -1,414 +1,402 @@
 /**
  * Main Application Module for Cosplay Planner
- * Supports both offline (localStorage) and online (Google Sheets API) modes
  */
 
 const App = {
-    /**
-     * Initialize Application
-     */
     async init() {
-        // Load local state immediately so UI is responsive
-        window.State.loadFromLocal();
-        window.UI.updateStats();
-        window.UI.renderProjects();
+        UI.showLoading(true, 'กำลังเริ่มต้นแอปพลิเคชัน...');
+        UI.initTheme();
+        State.init();
         this.setupEventListeners();
-
-        // Sync from API in background if configured
-        if (window.API && window.API.isConfigured()) {
-            window.State.syncFromAPI().then(() => {
-                // UI will be updated by syncFromAPI internal calls
-            });
-        }
-
-        // Show mode indicator
-        setTimeout(() => {
-            if (window.API && window.API.isConfigured()) {
-                window.UI.showToast('เชื่อมต่อคลาวด์แล้ว', 'success');
-            } else {
-                window.UI.showToast('โหมดออฟไลน์', 'info');
-            }
-        }, 800);
+        await this.loadDashboard();
+        UI.showLoading(false);
     },
 
-    /**
-     * Global Event Listeners
-     */
     setupEventListeners() {
-        // Image Upload
-        const imageInput = document.getElementById('imageInput');
-        if (imageInput) {
-            imageInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    window.UI.showToast('กำลังประมวลผลรูปภาพ...', 'info');
-                    const result = await window.ImageProcessor.process(file);
-
-                    // Check GAS size limit (50,000 chars)
-                    if (window.API && window.API.isConfigured() && result.base64.length > 50000) {
-                        window.UI.showToast(`รูปภาพใหญ่เกินไป (${result.base64Length.toLocaleString()} chars) สูงสุด 50,000`, 'error');
-                        return;
-                    }
-
-                    window.State.tempBase64Image = result.base64;
-                    window.State.tempImageInfo = result;
-
-                    this.showImagePreview(result.base64, `ขนาด: ${result.width}×${result.height}px — ${result.processedSizeKB} KB (-${result.reductionPercent}%)`);
-                    window.UI.showToast('ประมวลผลรูปภาพสำเร็จ', 'success');
-                } catch (error) {
-                    window.UI.showToast(String(error), 'error');
-                }
+        let searchTimeout;
+        const searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+            searchInput.addEventListener("input", () => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => this.handleSearch(searchInput.value), 300);
             });
         }
-
-        // Budget Input listener
-        const budgetInput = document.getElementById('totalBudget');
-        if (budgetInput) {
-            budgetInput.addEventListener('input', () => window.UI.updateFormBudget());
+        const statusFilter = document.getElementById("statusFilter");
+        if (statusFilter) {
+            statusFilter.addEventListener("change", () => this.handleFilter(statusFilter.value));
         }
     },
 
-    // ============ IMAGE TAB & URL SUPPORT ============
+    async loadDashboard() {
+        const grid = document.getElementById("projectGrid");
+        if (!grid) return;
+        
+        UI.showLoading(true, 'กำลังโหลดโปรเจกต์...');
+        grid.innerHTML = '';
 
-    switchImageTab(mode) {
-        const tabUpload = document.getElementById('tabUpload');
-        const tabUrl = document.getElementById('tabUrl');
-        const panelUpload = document.getElementById('imageTabUpload');
-        const panelUrl = document.getElementById('imageTabUrl');
-
-        if (mode === 'url') {
-            tabUrl.style.background = 'var(--primary)';
-            tabUrl.style.color = 'white';
-            tabUpload.style.background = 'white';
-            tabUpload.style.color = 'var(--text-muted)';
-            panelUrl.classList.remove('hidden');
-            panelUpload.classList.add('hidden');
-        } else {
-            tabUpload.style.background = 'var(--primary)';
-            tabUpload.style.color = 'white';
-            tabUrl.style.background = 'white';
-            tabUrl.style.color = 'var(--text-muted)';
-            panelUpload.classList.remove('hidden');
-            panelUrl.classList.add('hidden');
+        try {
+            const projects = await this.getProjects();
+            const stats = this.getLocalStats(projects);
+            UI.updateStats(stats);
+            UI.renderProjects(projects, "", "");
+        } catch (error) {
+            console.error("Failed to load dashboard:", error);
+            const localProjects = State.getAll();
+            const stats = this.getLocalStats(localProjects);
+            UI.updateStats(stats);
+            UI.renderProjects(localProjects, "", "");
+        } finally {
+            UI.showLoading(false);
         }
-    },
-
-    loadImageFromUrl() {
-        const urlInput = document.getElementById('imageUrlInput');
-        const url = urlInput.value.trim();
-        if (!url) {
-            window.UI.showToast('กรุณาใส่ URL รูปภาพ', 'error');
-            return;
-        }
-
-        // Store URL directly (no base64 conversion — saves space)
-        window.State.tempBase64Image = url;
-        window.State.tempImageInfo = { type: 'url' };
-
-        this.showImagePreview(url, 'ใช้รูปจาก URL (ไม่ใช้ Base64)');
-        window.UI.showToast('โหลด URL รูปภาพสำเร็จ', 'success');
-    },
-
-    clearImage() {
-        window.State.tempBase64Image = null;
-        window.State.tempImageInfo = null;
-        document.getElementById('imagePreviewBox').classList.add('hidden');
-        document.getElementById('imageInput').value = '';
-        document.getElementById('imageUrlInput').value = '';
-        window.UI.showToast('ลบรูปภาพแล้ว', 'info');
-    },
-
-    showImagePreview(src, infoText) {
-        const box = document.getElementById('imagePreviewBox');
-        const img = document.getElementById('imagePreview');
-        const info = document.getElementById('imageProcessingInfo');
-
-        img.src = src;
-        img.onerror = () => {
-            info.innerHTML = '<p style="color: var(--error);">❌ โหลดรูปไม่สำเร็จ — ตรวจสอบ URL</p>';
-        };
-        info.innerHTML = `<p>${infoText}</p>`;
-        box.classList.remove('hidden');
     },
 
     /**
-     * Create New Project — reset form and switch view
+     * Get projects — fetch from API and merge with local data
      */
-    createNewProject() {
-        window.State.resetTemp();
-        document.getElementById('projectForm').reset();
-        document.getElementById('formTitle').textContent = 'สร้างโปรเจกต์ใหม่';
-        document.getElementById('imagePreviewBox').classList.add('hidden');
-        document.getElementById('imageProcessingInfo').innerHTML = '';
-        document.getElementById('imageUrlInput').value = '';
-        this.switchImageTab('upload');
-        window.UI.renderFormItems();
-        window.UI.switchView('viewCreate');
-    },
-
-    /**
-     * Edit Project — populate form with existing data
-     */
-    async editProject(projectId) {
-        // Fetch full data (including image) if API is available
-        let project;
-        if (window.API && window.API.isConfigured()) {
-            window.UI.showToast('กำลังโหลดข้อมูล...', 'info');
-            project = await window.State.fetchFullProject(projectId);
-        } else {
-            project = window.State.getProject(projectId);
-        }
-
-        if (!project) return;
-
-        window.State.currentEditId = projectId;
-        window.State.tempItems = JSON.parse(JSON.stringify(project.items || []));
-        window.State.tempBase64Image = project.base64Image || null;
-
-        // Populate Form
-        document.getElementById('charName').value = project.charName || '';
-        document.getElementById('seriesName').value = project.seriesName || '';
-        document.getElementById('totalBudget').value = project.budget || '';
-        document.getElementById('projectStatus').value = project.status || 'planning';
-        document.getElementById('projectNote').value = project.note || '';
-        document.getElementById('formTitle').textContent = 'แก้ไขโปรเจกต์';
-
-        // Image Preview
-        if (project.base64Image) {
-            const isUrl = project.base64Image.startsWith('http');
-            const label = isUrl ? 'รูปจาก URL' : 'รูปอัปโหลด (Base64)';
-            this.showImagePreview(project.base64Image, label);
-            if (isUrl) {
-                document.getElementById('imageUrlInput').value = project.base64Image;
-                this.switchImageTab('url');
+    async getProjects() {
+        let localProjects = State.getAll();
+        
+        if (API.isConfigured()) {
+            try {
+                const response = await API.list();
+                if (response.success && Array.isArray(response.data)) {
+                    const remoteProjects = response.data;
+                    const projectMap = new Map();
+                    localProjects.forEach(p => projectMap.set(p.id, p));
+                    
+                    remoteProjects.forEach(remote => {
+                        const local = projectMap.get(remote.id);
+                        if (!local) {
+                            projectMap.set(remote.id, remote);
+                        } else {
+                            const localTime = new Date(local.updatedAt || 0).getTime();
+                            const remoteTime = new Date(remote.updatedAt || 0).getTime();
+                            if (remoteTime > localTime) {
+                                projectMap.set(remote.id, remote);
+                            }
+                        }
+                    });
+                    
+                    const merged = Array.from(projectMap.values());
+                    State.projects = merged;
+                    State.saveToLocal();
+                    return merged;
+                }
+            } catch (e) {
+                console.warn('API sync failed, using local data:', e);
             }
-        } else {
-            document.getElementById('imagePreviewBox').classList.add('hidden');
         }
+        return localProjects;
+    },
 
-        window.UI.renderFormItems();
-        window.UI.switchView('viewCreate');
+    getLocalStats(projects) {
+        const list = projects || State.getAll();
+        const totalBudget = list.reduce((sum, p) => sum + (p.budget || 0), 0);
+        return {
+            total: list.length,
+            active: list.filter(p => p.status === 'active').length,
+            completed: list.filter(p => p.status === 'completed').length,
+            budgetTotal: totalBudget
+        };
+    },
+
+    async handleSearch(query) {
+        const projects = await this.getProjects();
+        UI.renderProjects(projects, query, document.getElementById("statusFilter")?.value || "");
+    },
+
+    async handleFilter(status) {
+        const projects = await this.getProjects();
+        UI.renderProjects(projects, document.getElementById("searchInput")?.value || "", status);
+    },
+
+    createNewProject() {
+        State.currentEditId = null;
+        this.setFormDefaults();
+        UI.switchView("viewCreate");
+        State.tempItems = [];
+        State.tempBase64Image = null;
+    },
+
+    setFormDefaults() {
+        const fields = ["charName", "seriesName", "budget", "note", "imageUrl"];
+        fields.forEach(id => { if (document.getElementById(id)) document.getElementById(id).value = ""; });
+        if (document.getElementById("status")) document.getElementById("status").value = "planning";
+        if (document.getElementById("imagePreview")) document.getElementById("imagePreview").style.display = "none";
+        if (document.getElementById("formTitle")) document.getElementById("formTitle").textContent = "สร้างโปรเจกต์ใหม่";
+        if (document.getElementById("itemsList")) {
+            document.getElementById("itemsList").innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 1rem;">ยังไม่มีรายการสินค้า กดปุ่ม "+ เพิ่มสินค้า" เพื่อเพิ่มรายการแรก</p>`;
+        }
+        
+        // Reset image state
+        State.tempBase64Image = null;
     },
 
     /**
-     * Save Project — create or update
+     * Populate form with existing project data for editing
      */
-    async saveProject() {
-        const charName = document.getElementById('charName').value.trim();
-        const seriesName = document.getElementById('seriesName').value.trim();
-        const budget = parseFloat(document.getElementById('totalBudget').value) || 0;
-        const status = document.getElementById('projectStatus').value;
-        const note = document.getElementById('projectNote').value.trim();
-
-        if (!charName) {
-            window.UI.showToast('กรุณากรอกชื่อตัวละคร', 'error');
-            document.getElementById('charName').focus();
-            return;
+    populateForm(project) {
+        if (!project) return;
+        
+        document.getElementById("charName").value = project.charName || "";
+        document.getElementById("seriesName").value = project.seriesName || "";
+        document.getElementById("budget").value = project.budget || 0;
+        document.getElementById("status").value = project.status || "planning";
+        document.getElementById("note").value = project.note || "";
+        document.getElementById("formTitle").textContent = "แก้ไขโปรเจกต์: " + project.charName;
+        
+        if (project.base64Image) {
+            this.processImage(project.base64Image);
+        } else {
+            document.getElementById("imagePreview").style.display = "none";
         }
+        
+        // Populate items
+        const itemsList = document.getElementById("itemsList");
+        itemsList.innerHTML = "";
+        if (project.items && project.items.length > 0) {
+            project.items.forEach(item => {
+                this.addEmptyItemWithData(item);
+            });
+        } else {
+            itemsList.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 1rem;">ยังไม่มีรายการสินค้า กดปุ่ม "+ เพิ่มสินค้า" เพื่อเพิ่มรายการแรก</p>`;
+        }
+    },
 
+    /**
+     * Helper to add item with pre-filled data
+     */
+    addEmptyItemWithData(item) {
+        const itemsList = document.getElementById("itemsList");
+        const itemCard = document.createElement("div");
+        itemCard.className = "card";
+        itemCard.style.padding = "1rem";
+        itemCard.style.marginBottom = "0.75rem";
+        itemCard.innerHTML = `
+            <form onsubmit="return false;">
+                <div class="grid-2-col" style="gap: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ชื่อสินค้า *</label>
+                        <input type="text" name="name" value="${item.name || ''}" required>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ราคา (บาท) *</label>
+                        <input type="number" name="price" value="${item.price || 0}" min="0" required>
+                    </div>
+                </div>
+                <div class="grid-2-col" style="gap: 0.75rem; margin-top: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ลิงค์ร้านค้า</label>
+                        <input type="url" name="shopLink" value="${item.shopLink || ''}">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ประเภท</label>
+                        <select name="category">
+                            <option value="">เลือก...</option>
+                            <option value="วิก" ${item.category === 'วิก' ? 'selected' : ''}>วิก</option>
+                            <option value="ชุด" ${item.category === 'ชุด' ? 'selected' : ''}>ชุด</option>
+                            <option value="พร็อพ" ${item.category === 'พร็อพ' ? 'selected' : ''}>พร็อพ</option>
+                            <option value="รองเท้า" ${item.category === 'รองเท้า' ? 'selected' : ''}>รองเท้า</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" onclick="this.closest('.card').remove()" class="btn btn-ghost" style="margin-top: 0.75rem; color: var(--error); width: 100%;">🗑️ ลบ</button>
+            </form>
+        `;
+        itemsList.appendChild(itemCard);
+    },
+
+    handleImageFile(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => this.processImage(e.target.result);
+        reader.readAsDataURL(file);
+        input.value = "";
+    },
+
+    processImage(base64) {
+        const preview = document.getElementById("imagePreview");
+        const img = document.getElementById("previewImg");
+        if (preview) preview.style.display = "block";
+        if (img) img.src = base64;
+        State.tempBase64Image = base64;
+    },
+
+    addItem() {
+        const itemsList = document.getElementById("itemsList");
+        if (!itemsList) return;
+        const emptyMsg = itemsList.querySelector("p");
+        if (emptyMsg) emptyMsg.remove();
+        
+        const itemCard = document.createElement("div");
+        itemCard.className = "card";
+        itemCard.style.padding = "1rem";
+        itemCard.style.marginBottom = "0.75rem";
+        itemCard.innerHTML = `
+            <form onsubmit="return false;">
+                <div class="grid-2-col" style="gap: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ชื่อสินค้า *</label>
+                        <input type="text" name="name" required>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ราคา (บาท) *</label>
+                        <input type="number" name="price" min="0" required>
+                    </div>
+                </div>
+                <div class="grid-2-col" style="gap: 0.75rem; margin-top: 0.75rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ลิงค์ร้านค้า</label>
+                        <input type="url" name="shopLink">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">ประเภท</label>
+                        <select name="category">
+                            <option value="">เลือก...</option>
+                            <option value="วิก">วิก</option><option value="ชุด">ชุด</option>
+                            <option value="พร็อพ">พร็อพ</option><option value="รองเท้า">รองเท้า</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" onclick="this.closest('.card').remove()" class="btn btn-ghost" style="margin-top: 0.75rem; color: var(--error); width: 100%;">🗑️ ลบ</button>
+            </form>
+        `;
+        itemsList.appendChild(itemCard);
+    },
+
+    editProject(projectId) {
+        UI.showLoading(true, 'กำลังดึงข้อมูลเพื่อแก้ไข...');
+        API.get(projectId).then(response => {
+            if (response.success && response.data) {
+                State.currentEditId = projectId;
+                this.populateForm(response.data);
+                UI.switchView("viewCreate");
+            } else {
+                UI.showToast("ไม่พบข้อมูลโปรเจกต์", "error");
+            }
+        }).catch(err => {
+            UI.showToast("เกิดข้อผิดพลาด", "error");
+        }).finally(() => {
+            UI.showLoading(false);
+        });
+    },
+
+    getItems() {
+        const itemsList = document.getElementById("itemsList");
+        if (!itemsList) return [];
+        const forms = itemsList.querySelectorAll("form");
+        const items = [];
+        forms.forEach(form => {
+            const fd = new FormData(form);
+            const name = fd.get("name");
+            const price = parseInt(fd.get("price")) || 0;
+            const shopLink = fd.get("shopLink");
+            const category = fd.get("category");
+            if (name) items.push({ name, price, shopLink, category });
+        });
+        return items;
+    },
+
+    async saveProject() {
+        const charName = document.getElementById("charName").value.trim();
+        if (!charName) { UI.showToast("กรุณากรอกชื่อตัวละคร", "error"); return; }
+
+        UI.showLoading(true, 'กำลังบันทึกข้อมูล...');
         const projectData = {
-            id: window.State.currentEditId || Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+            id: State.currentEditId || "proj_" + Date.now(),
             charName,
-            seriesName,
-            budget,
-            status,
-            note,
-            items: window.State.tempItems,
-            base64Image: window.State.tempBase64Image,
+            seriesName: document.getElementById("seriesName").value.trim(),
+            budget: parseInt(document.getElementById("budget").value) || 0,
+            status: document.getElementById("status").value,
+            note: document.getElementById("note").value.trim(),
+            base64Image: State.tempBase64Image || (State.currentEditId ? State.get(State.currentEditId)?.base64Image : ""),
+            items: this.getItems(),
             updatedAt: new Date().toISOString()
         };
 
-        window.UI.showToast('กำลังบันทึก...', 'info');
-
-        if (window.State.currentEditId) {
-            await window.State.updateProject(window.State.currentEditId, projectData);
-            window.UI.showToast('บันทึกการแก้ไขสำเร็จ', 'success');
-        } else {
-            projectData.createdAt = new Date().toISOString();
-            await window.State.addProject(projectData);
-            window.UI.showToast('สร้างโปรเจกต์สำเร็จ', 'success');
-        }
-
-        window.State.currentEditId = null;
-        window.UI.switchView('viewDashboard');
-    },
-
-    // ============ ITEM MANAGEMENT ============
-
-    addItem() {
-        const newItem = {
-            id: Date.now(),
-            name: '',
-            price: 0,
-            type: 'other',
-            shop: '',
-            shopUrl: '',
-            completed: false
-        };
-        window.State.tempItems.push(newItem);
-        window.UI.renderFormItems();
-    },
-
-    removeItem(itemId) {
-        window.State.tempItems = window.State.tempItems.filter(i => i.id !== itemId);
-        window.UI.renderFormItems();
-    },
-
-    updateItemField(itemId, field, value) {
-        const item = window.State.tempItems.find(i => i.id === itemId);
-        if (item) {
-            if (field === 'price') value = parseFloat(value) || 0;
-            item[field] = value;
-            if (field === 'price') window.UI.updateFormBudget();
-        }
-    },
-
-    toggleItemComplete(itemId) {
-        const item = window.State.tempItems.find(i => i.id === itemId);
-        if (item) {
-            item.completed = !item.completed;
-            window.UI.renderFormItems();
-        }
-    },
-
-    // ============ PROJECT DETAIL ============
-
-    async openProjectDetail(projectId) {
-        // Show basic data instantly from local state
-        const localProject = window.State.getProject(projectId);
-        if (!localProject) return;
-
-        window.State.currentDetailId = projectId;
-        this.renderDetailView(localProject);
-        window.UI.switchView('viewDetail');
-
-        // Lazy Load Round 2: fetch full data (with image) from API
-        if (window.API && window.API.isConfigured() && !localProject.base64Image && localProject.hasImage) {
-            const fullProject = await window.State.fetchFullProject(projectId);
-            if (fullProject) {
-                this.renderDetailView(fullProject);
-                window.UI.showToast('โหลดรูปภาพสำเร็จ (Lazy Load)', 'success');
+        try {
+            let response;
+            if (State.currentEditId) {
+                // If editing, use API.update
+                response = await API.update(State.currentEditId, projectData);
+            } else {
+                // If new, use API.create
+                response = await API.create(projectData);
             }
+
+            if (response.success) {
+                UI.showToast("บันทึกสำเร็จ! 🎉", "success");
+                
+                // Update local State to keep UI in sync
+                if (State.currentEditId) {
+                    State.update(projectData);
+                } else {
+                    State.add(projectData);
+                }
+                
+                this.setFormDefaults();
+                State.currentEditId = null; // Clear edit mode
+                setTimeout(() => UI.switchView("viewDashboard"), 500);
+            } else {
+                UI.showToast("บันทึกล้มเหลว: " + (response.error || "ไม่ทราบสาเหตุ"), "error");
+            }
+        } catch (error) {
+            console.error("Save failed:", error);
+            UI.showToast("Error: " + error.message, "error");
+        } finally {
+            UI.showLoading(false);
         }
     },
 
-    /**
-     * Render the Detail View with project data
-     */
-    renderDetailView(project) {
-        document.getElementById('detailChar').textContent = project.charName || '-';
-        document.getElementById('detailSeries').textContent = project.seriesName || '';
-        document.getElementById('detailNote').textContent = project.note || 'ไม่มีหมายเหตุ';
-
-        const status = window.UI.getStatusConfig(project.status);
-        const statusBadge = document.getElementById('detailStatus');
-        statusBadge.textContent = status.label;
-        statusBadge.style.background = status.bg;
-        statusBadge.style.color = status.color;
-
-        // Items List
-        const list = document.getElementById('detailItemsList');
-        list.innerHTML = '';
-
-        const items = project.items || [];
-        if (items.length === 0) {
-            list.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--text-light); font-size: 0.875rem;">ยังไม่มีรายการไอเทม</div>';
-        } else {
-            // Summary row
-            const totalSpent = items.reduce((s, i) => s + (i.price || 0), 0);
-            const completedCount = items.filter(i => i.completed).length;
-            const summaryEl = document.createElement('div');
-            summaryEl.style.cssText = 'display: flex; justify-content: space-between; padding: 0.75rem 0; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.8125rem;';
-            summaryEl.innerHTML = `
-                <span style="color: var(--text-muted);">${completedCount}/${items.length} รายการเสร็จ</span>
-                <span style="font-weight: 700;">฿${totalSpent.toLocaleString()} / ฿${(project.budget || 0).toLocaleString()}</span>
-            `;
-            list.appendChild(summaryEl);
-
-            items.forEach(item => {
-                const config = window.UI.getItemTypeConfig(item.type);
-                const shopLabel = item.shop ? { shopee: 'Shopee', lazada: 'Lazada', fb: 'Facebook', other: 'อื่นๆ' }[item.shop] || '' : '';
-
-                const itemEl = document.createElement('div');
-                itemEl.style.cssText = `
-                    border: 1px solid var(--border); border-radius: var(--radius-md);
-                    margin-bottom: 0.75rem; overflow: hidden;
-                    ${item.completed ? 'opacity: 0.5;' : ''}
-                `;
-                itemEl.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem;">
-                        <div style="display: flex; align-items: center; gap: 0.625rem; flex: 1; min-width: 0;">
-                            <span style="font-size: 1.125rem;">${config.icon}</span>
-                            <div style="min-width: 0;">
-                                <div style="font-weight: 600; font-size: 0.875rem; ${item.completed ? 'text-decoration: line-through;' : ''}">${window.UI.escapeHtml(item.name || '(ไม่มีชื่อ)')}</div>
-                                ${shopLabel ? `<div style="font-size: 0.75rem; color: var(--text-light);">${shopLabel}</div>` : ''}
-                            </div>
-                        </div>
-                        <div style="font-weight: 700; font-size: 0.9375rem; color: var(--primary); white-space: nowrap;">฿${(item.price || 0).toLocaleString()}</div>
-                    </div>
-                    ${item.shopUrl ? `
-                    <a href="${window.UI.escapeHtml(item.shopUrl)}" target="_blank" rel="noopener" style="
-                        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-                        padding: 0.625rem 1rem;
-                        background: #eef2ff; color: var(--primary);
-                        text-decoration: none; font-size: 0.8125rem; font-weight: 600;
-                        border-top: 1px solid var(--border);
-                        transition: background 0.2s;
-                    " onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">
-                        🔗 เปิดลิงก์ร้านค้า — ${shopLabel}
-                    </a>
-                    ` : ''}
-                `;
-                list.appendChild(itemEl);
-            });
-        }
-
-        // Image Container Logic
-        const img = document.getElementById('detailImage');
-        const imgBox = img.parentElement;
-        
-        // Remove any existing status placeholders
-        const existingStatus = imgBox.querySelector('.img-status');
-        if (existingStatus) existingStatus.remove();
-
-        if (project.base64Image) {
-            img.src = project.base64Image;
-            img.style.display = 'block';
-            imgBox.style.display = 'block';
-        } else if (project.hasImage) {
-            // API mode: image not loaded yet — show placeholder, KEEP img tag
-            img.style.display = 'none';
-            imgBox.style.display = 'block';
-            const status = document.createElement('div');
-            status.className = 'img-status';
-            status.style.cssText = 'padding: 4rem 2rem; text-align: center; color: var(--text-light); background: #f8fafc; border-radius: var(--radius-md);';
-            status.innerHTML = `
-                <div style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;">🖼️</div>
-                <div style="font-size: 0.8125rem; font-weight: 500;">กำลังโหลดรูปจากคลาวด์...</div>
-            `;
-            imgBox.appendChild(status);
-        } else {
-            img.style.display = 'none';
-            imgBox.style.display = 'none';
+    async loadProjectDetails(projectId) {
+        UI.showLoading(true, 'กำลังดึงข้อมูล...');
+        try {
+            const response = await API.get(projectId);
+            if (response.success && response.data) {
+                const project = response.data;
+                document.getElementById("detailCharacter").textContent = project.charName || "—";
+                document.getElementById("detailSeries").textContent = project.seriesName || "—";
+                document.getElementById("detailBudget").textContent = "฿" + (project.budget || 0).toLocaleString();
+                document.getElementById("detailNote").textContent = project.note || "—";
+                const badge = document.getElementById("detailBadge");
+                if (badge) {
+                    badge.className = "badge " + (project.status || "planning");
+                    badge.textContent = UI.getBadgeText(project.status);
+                }
+                const img = document.getElementById("detailImage");
+                const ph = document.getElementById("detailImagePlaceholder");
+                if (project.base64Image) {
+                    img.src = project.base64Image; img.style.display = "block"; ph.style.display = "none";
+                } else {
+                    img.style.display = "none"; ph.style.display = "flex";
+                }
+                UI.renderItems(project.items || []);
+                State.currentEditId = projectId;
+            }
+        } catch (e) {
+            UI.showToast("โหลดข้อมูลล้มเหลว", "error");
+        } finally {
+            UI.showLoading(false);
         }
     },
 
-    editCurrentProject() {
-        this.editProject(window.State.currentDetailId);
-    },
-
-    async deleteCurrentProject() {
-        if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบโปรเจกต์นี้?')) {
-            await window.State.deleteProject(window.State.currentDetailId);
-            window.UI.showToast('ลบโปรเจกต์สำเร็จ', 'warning');
-            window.UI.switchView('viewDashboard');
+    async deleteProject(projectId) {
+        if (!confirm("ลบโปรเจกต์นี้?")) return;
+        UI.showLoading(true, 'กำลังลบ...');
+        try {
+            const response = await API.delete(projectId);
+            if (response.success) {
+                State.delete(projectId);
+                UI.showToast("ลบสำเร็จ", "success");
+                UI.switchView("viewDashboard");
+            }
+        } finally {
+            UI.showLoading(false);
         }
     }
 };
 
 window.App = App;
-
-// Bootstrap
-document.addEventListener('DOMContentLoaded', () => window.App.init());
+document.addEventListener("DOMContentLoaded", () => App.init());
+console.log("✅ App Module initialized");

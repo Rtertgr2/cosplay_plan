@@ -1,219 +1,268 @@
 /**
- * UI Rendering and Interaction Module (Clean & Minimal Edition)
+ * UI Rendering and Interaction Module for Cosplay Planner
  */
 
 const UI = {
-    views: ['viewDashboard', 'viewCreate', 'viewDetail'],
+    /**
+     * Initialize Theme
+     */
+    initTheme() {
+        const savedTheme = localStorage.getItem('cosplay-theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            this.updateThemeIcon(savedTheme);
+        } else {
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+            if (prefersDark.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('cosplay-theme', 'dark');
+                this.updateThemeIcon('dark');
+            }
+        }
+    },
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('cosplay-theme', newTheme);
+        this.updateThemeIcon(newTheme);
+    },
+
+    updateThemeIcon(theme) {
+        const btn = document.getElementById('themeToggle');
+        if (btn) {
+            btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+    },
 
     switchView(viewName) {
-        this.views.forEach(viewId => {
-            const el = document.getElementById(viewId);
-            if (viewId === viewName) {
-                el.classList.remove('hidden');
-                el.classList.add('animate-fade-in');
-            } else {
-                el.classList.add('hidden');
+        const views = ['viewDashboard', 'viewCreate', 'viewDetail'];
+        views.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === viewName) {
+                    el.removeAttribute('hidden');
+                    el.style.animation = 'fadeIn 0.3s ease';
+                } else {
+                    el.setAttribute('hidden', '');
+                }
             }
         });
 
-        const navDashboard = document.getElementById('navDashboard');
-        if (viewName === 'viewDashboard') {
-            navDashboard.classList.add('btn-secondary');
-            this.updateStats();
-            this.renderProjects();
-        } else {
-            navDashboard.classList.remove('btn-secondary');
+        if (viewName === 'viewDashboard' && window.App) {
+            window.App.loadDashboard();
         }
     },
 
-    showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = 'toast animate-fade-in';
-        toast.innerHTML = `<span>${this.getToastIcon(type)}</span> <span>${message}</span>`;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(10px)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+    /**
+     * Show or hide loading overlay
+     */
+    showLoading(show, message = 'กำลังโหลดข้อมูล...') {
+        const overlay = document.getElementById('loadingOverlay');
+        if (!overlay) return;
+
+        const text = overlay.querySelector('.loading-text');
+        if (text) text.textContent = message;
+
+        if (show) {
+            overlay.classList.remove('hidden');
+        } else {
+            overlay.classList.add('hidden');
+        }
     },
 
-    getToastIcon(type) {
-        const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-        return icons[type] || '✅';
+    updateStats(stats) {
+        if (!stats) return;
+        const statTotal = document.getElementById('statTotal');
+        const statActive = document.getElementById('statActive');
+        const statCompleted = document.getElementById('statCompleted');
+        const statBudget = document.getElementById('statBudget');
+
+        if (statTotal) statTotal.textContent = stats.total || 0;
+        if (statActive) statActive.textContent = stats.active || 0;
+        if (statCompleted) statCompleted.textContent = stats.completed || 0;
+        if (statBudget) statBudget.textContent = '฿' + (stats.budgetTotal || 0).toLocaleString();
     },
 
-    updateStats() {
-        const projects = window.State.projects;
-        document.getElementById('statTotal').textContent = projects.length;
-        document.getElementById('statActive').textContent = projects.filter(p => !['completed', 'cancelled'].includes(p.status)).length;
-        document.getElementById('statCompleted').textContent = projects.filter(p => p.status === 'completed').length;
-        const totalBudget = projects.reduce((sum, p) => sum + (p.budget || 0), 0);
-        document.getElementById('statBudget').textContent = '฿' + totalBudget.toLocaleString();
-    },
-
-    renderProjects() {
-        const projects = window.State.projects;
+    renderProjects(projects, searchQuery = '', statusFilter = '') {
         const grid = document.getElementById('projectGrid');
-        const emptyState = document.getElementById('emptyState');
+        if (!grid) return;
+
+        let filteredProjects = [...projects];
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filteredProjects = filteredProjects.filter(p =>
+                (p.charName || '').toLowerCase().includes(query) ||
+                (p.seriesName || '').toLowerCase().includes(query) ||
+                (p.note || '').toLowerCase().includes(query)
+            );
+        }
+
+        if (statusFilter) {
+            filteredProjects = filteredProjects.filter(p => p.status === statusFilter);
+        }
 
         grid.innerHTML = '';
 
-        if (projects.length === 0) {
-            emptyState.classList.remove('hidden');
+        if (filteredProjects.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1; padding: 3rem; text-align: center;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🎭</div>
+                    <p style="font-size: 1.25rem; margin-bottom: 0.5rem;">ยังไม่มีโปรเจกต์</p>
+                    <p style="font-size: 0.875rem; color: var(--text-muted);">กดปุ่ม "+ สร้างโปรเจกต์" เพื่อเริ่มต้น</p>
+                </div>
+            `;
             return;
         }
 
-        emptyState.classList.add('hidden');
-
-        projects.forEach((project, index) => {
-            const itemTotal = (project.items || []).reduce((sum, item) => sum + (item.price || 0), 0);
-            const budgetPercent = project.budget > 0 ? Math.min((itemTotal / project.budget) * 100, 100) : 0;
-            const status = this.getStatusConfig(project.status);
-
+        filteredProjects.forEach(project => {
             const card = document.createElement('div');
-            card.className = 'card animate-fade-in cursor-pointer hover:border-indigo-300 transition-colors';
-            card.style.animationDelay = `${index * 0.05}s`;
-            card.onclick = () => window.App.openProjectDetail(project.id);
+            card.className = 'project-card';
+            card.onclick = () => this.showDetail(project.id);
+
+            const statusClass = project.status || 'planning';
+            const badgeText = this.getBadgeText(project.status);
+            const charName = project.charName || '—';
+            const seriesName = project.seriesName || 'Unknown Series';
+            const budget = (project.budget || 0).toLocaleString();
+            const itemCount = project.items ? project.items.length : 0;
+            const hasImage = project.base64Image && project.base64Image.length > 10;
 
             card.innerHTML = `
-                <div style="padding: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                        <div style="flex: 1; min-width: 0;">
-                            <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this.escapeHtml(project.charName)}</h3>
-                            <p style="font-size: 0.8125rem; color: var(--text-muted);">${this.escapeHtml(project.seriesName)}</p>
+                <div style="display: flex; gap: 1rem;">
+                    ${hasImage ? `
+                        <div style="width: 80px; height: 80px; border-radius: var(--radius-lg); overflow: hidden; flex-shrink: 0; background: var(--bg-secondary);">
+                            <img src="${project.base64Image}" alt="${charName}" style="width: 100%; height: 100%; object-fit: cover;">
                         </div>
-                        <span class="badge" style="background: ${status.bg}; color: ${status.color};">${status.label}</span>
-                    </div>
-                    
-                    ${project.base64Image ? `
-                    <div style="width: 100%; height: 140px; border-radius: var(--radius-md); overflow: hidden; margin-bottom: 1rem; background: #f1f5f9;">
-                        <img src="${project.base64Image}" style="width: 100%; height: 100%; object-fit: cover;" alt="Reference">
-                    </div>
                     ` : `
-                    <div style="width: 100%; height: 40px; border-radius: var(--radius-md); background: #f8fafc; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1rem; color: #cbd5e1; border: 1px dashed #e2e8f0;">🎭 No Image</div>
+                        <div style="width: 80px; height: 80px; border-radius: var(--radius-lg); overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, var(--primary), #8b5cf6); display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">🎭</div>
                     `}
-                    
-                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.375rem;">
-                        <span style="font-weight: 500;">฿${itemTotal.toLocaleString()} <span style="font-weight: 400; color: var(--text-light);">/ ฿${(project.budget || 0).toLocaleString()}</span></span>
-                        <span style="color: ${itemTotal > project.budget ? 'var(--error)' : 'var(--text-muted)'}">${Math.round(budgetPercent)}%</span>
+
+                    <div style="flex: 1;">
+                        <h3 style="font-size: 1.125rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; line-height: 1.3;">${charName}</h3>
+                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">${seriesName}</p>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center;">
+                            <span class="badge ${statusClass}">${badgeText}</span>
+                        </div>
+                        <div style="font-size: 0.875rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem;">
+                            <span>📦 Items: ${itemCount}</span>
+                            <span>💰 ฿${budget}</span>
+                        </div>
                     </div>
-                    <div style="width: 100%; background: #f1f5f9; border-radius: 99px; height: 6px; overflow: hidden;">
-                        <div style="height: 100%; border-radius: 99px; width: ${budgetPercent}%; background: ${itemTotal > project.budget ? 'var(--error)' : 'var(--primary)'}; transition: width 0.6s ease;"></div>
-                    </div>
+                </div>
+                <div class="project-actions" style="position: absolute; top: 1rem; right: 1rem; opacity: 0; transition: opacity 0.15s ease;">
+                    <button onclick="event.stopPropagation(); window.App.editProject('${project.id}')" class="btn btn-ghost" style="padding: 0.5rem;">✏️</button>
+                    <button onclick="event.stopPropagation(); window.App.deleteProject('${project.id}')" class="btn btn-ghost" style="padding: 0.5rem; color: var(--error);">🗑️</button>
                 </div>
             `;
 
             grid.appendChild(card);
         });
+
+        this.addHoverEffects();
     },
 
-    renderFormItems() {
-        const container = document.getElementById('itemsList');
-        const items = window.State.tempItems;
-        container.innerHTML = '';
+    getBadgeText(status) {
+        const mapping = {
+            'planning': '📋 วางแผนอยู่',
+            'active': '🔨 กำลังดำเนินการ',
+            'waiting': '⏳ กำลังรอของ',
+            'completed': '✅ คอสเสร็จแล้ว',
+            'cancelled': '❌ ยกเลิก'
+        };
+        return mapping[status] || '—';
+    },
 
-        if (items.length === 0) {
-            container.innerHTML = '<div style="text-align: center; padding: 2rem; border: 1px dashed var(--border); border-radius: var(--radius-lg); color: var(--text-light); font-size: 0.875rem;">ยังไม่มีรายการไอเทม</div>';
+    addHoverEffects() {
+        const cards = document.querySelectorAll('.project-card');
+        cards.forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                const actions = card.querySelector('.project-actions');
+                if (actions) actions.style.opacity = '1';
+            });
+            card.addEventListener('mouseleave', () => {
+                const actions = card.querySelector('.project-actions');
+                if (actions) actions.style.opacity = '0';
+            });
+        });
+    },
+
+    showDetail(projectId) {
+        window.App.loadProjectDetails(projectId);
+        this.switchView('viewDetail');
+    },
+
+    /**
+     * Render items list in detail view (Includes Shop Link Button)
+     */
+    renderItems(items) {
+        const container = document.getElementById('detailItemsList');
+        if (!container) return;
+
+        if (!items || items.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">📦</div>
+                    <p>ยังไม่มีรายการสินค้า</p>
+                </div>
+            `;
             return;
         }
 
-        items.forEach((item, index) => {
-            const config = this.getItemTypeConfig(item.type);
-            const row = document.createElement('div');
-            row.style.background = 'white';
-            row.style.border = '1px solid var(--border)';
-            row.style.borderRadius = 'var(--radius-md)';
-            row.style.padding = '1rem';
-            row.style.marginBottom = '0.75rem';
-            row.style.display = 'flex';
-            row.style.flexDirection = 'column';
-            row.style.gap = '0.75rem';
-            row.className = 'animate-fade-in';
-
-            row.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <button onclick="window.App.toggleItemComplete(${item.id})" style="width: 1.25rem; height: 1.25rem; border-radius: 4px; border: 1px solid ${item.completed ? 'var(--primary)' : '#d1d5db'}; background: ${item.completed ? 'var(--primary)' : 'transparent'}; cursor: pointer; color: white; font-size: 0.75rem; display: flex; align-items: center; justify-content: center;">
-                        ${item.completed ? '✓' : ''}
-                    </button>
-                    <span style="font-size: 1.125rem;">${config.icon}</span>
-                    <input type="text" class="input-field" value="${this.escapeHtml(item.name)}" oninput="window.App.updateItemField(${item.id}, 'name', this.value)" placeholder="ชื่อไอเทม (เช่น วิกสีบลอนด์, ผ้าลูกไม้)" style="flex: 1;">
-                    <button onclick="window.App.removeItem(${item.id})" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem;">🗑️</button>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 0.875rem; color: #94a3b8;">฿</span>
-                        <input type="number" class="input-field" value="${item.price || ''}" oninput="window.App.updateItemField(${item.id}, 'price', this.value)" placeholder="ราคา" style="padding-left: 1.75rem;">
+        container.innerHTML = items.map((item) => {
+            const price = (item.price || 0).toLocaleString();
+            return `
+                <div class="card" style="padding: 1.25rem; margin-bottom: 1rem; position: relative; overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                                <strong style="font-size: 1.125rem;">${item.name || 'สินค้าใหม่'}</strong>
+                                ${item.category ? `<span class="badge planning" style="font-size: 0.75rem;">${item.category}</span>` : ''}
+                            </div>
+                            <p style="font-size: 1.25rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem;">฿${price}</p>
+                            
+                            ${item.shopLink ? `
+                                <a href="${item.shopLink}" target="_blank" class="btn-shop">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                                    </svg>
+                                    ไปที่ร้านค้า
+                                </a>
+                            ` : `
+                                <span style="font-size: 0.875rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;">
+                                    <svg style="width: 1rem; height: 1rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                    </svg>
+                                    ยังไม่ได้ระบุลิงก์ร้านค้า
+                                </span>
+                            `}
+                        </div>
                     </div>
-                    <select class="input-field" onchange="window.App.updateItemField(${item.id}, 'shop', this.value)">
-                        <option value="">-- แหล่งซื้อ --</option>
-                        <option value="shopee" ${item.shop === 'shopee' ? 'selected' : ''}>Shopee</option>
-                        <option value="lazada" ${item.shop === 'lazada' ? 'selected' : ''}>Lazada</option>
-                        <option value="fb" ${item.shop === 'fb' ? 'selected' : ''}>Facebook</option>
-                        <option value="other" ${item.shop === 'other' ? 'selected' : ''}>อื่นๆ / ทำเอง</option>
-                    </select>
-                </div>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
-                   <input type="url" class="input-field" value="${this.escapeHtml(item.shopUrl)}" oninput="window.App.updateItemField(${item.id}, 'shopUrl', this.value)" placeholder="https://ลิงก์สินค้า..." style="flex: 1;">
-                   <select class="input-field" onchange="window.App.updateItemField(${item.id}, 'type', this.value)" style="width: auto; min-width: 120px;">
-                        <option value="wig" ${item.type === 'wig' ? 'selected' : ''}>💇 วิก</option>
-                        <option value="costume" ${item.type === 'costume' ? 'selected' : ''}>👗 ชุด</option>
-                        <option value="prop" ${item.type === 'prop' ? 'selected' : ''}>⚔️ พร็อพ</option>
-                        <option value="shoes" ${item.type === 'shoes' ? 'selected' : ''}>👟 รองเท้า</option>
-                        <option value="accessory" ${item.type === 'accessory' ? 'selected' : ''}>💎 เครื่องประดับ</option>
-                        <option value="makeup" ${item.type === 'makeup' ? 'selected' : ''}>💄 เมคอัพ</option>
-                        <option value="other" ${item.type === 'other' ? 'selected' : ''}>📦 อื่นๆ</option>
-                   </select>
                 </div>
             `;
-            container.appendChild(row);
-        });
-
-        this.updateFormBudget();
+        }).join('');
     },
 
-    updateFormBudget() {
-        const items = window.State.tempItems;
-        const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
-        const budget = parseFloat(document.getElementById('totalBudget').value) || 0;
-        const percent = budget > 0 ? (total / budget) * 100 : 0;
+    showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
 
-        document.getElementById('itemTotal').textContent = '฿' + total.toLocaleString();
-        document.getElementById('budgetDisplay').textContent = '฿' + budget.toLocaleString();
-        document.getElementById('budgetPercent').textContent = Math.round(percent) + '%';
-        
-        const progressBar = document.getElementById('budgetProgress');
-        progressBar.style.width = Math.min(percent, 100) + '%';
-        progressBar.style.background = total > budget && budget > 0 ? 'var(--error)' : 'var(--primary)';
-    },
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        const colors = { 'success': 'var(--success)', 'error': 'var(--error)', 'warning': 'var(--warning)', 'info': 'var(--primary)' };
+        toast.style.borderLeftColor = colors[type] || colors['info'];
+        toast.textContent = message;
+        container.appendChild(toast);
 
-    getStatusConfig(status) {
-        const configs = {
-            'planning': { label: 'วางแผน', bg: '#f1f5f9', color: '#475569' },
-            'in-progress': { label: 'กำลังทำ', bg: '#eff6ff', color: '#2563eb' },
-            'waiting': { label: 'รอของ', bg: '#fffbeb', color: '#d97706' },
-            'completed': { label: 'เสร็จแล้ว', bg: '#ecfdf5', color: '#059669' },
-            'cancelled': { label: 'ยกเลิก', bg: '#fef2f2', color: '#dc2626' }
-        };
-        return configs[status] || configs['planning'];
-    },
-
-    getItemTypeConfig(type) {
-        const configs = {
-            wig: { icon: '💇' }, costume: { icon: '👗' }, prop: { icon: '⚔️' },
-            shoes: { icon: '👟' }, accessory: { icon: '💎' }, makeup: { icon: '💄' },
-            other: { icon: '📦' }
-        };
-        return configs[type] || configs['other'];
-    },
-
-    escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 };
 
 window.UI = UI;
+console.log("✅ UI Module initialized");
