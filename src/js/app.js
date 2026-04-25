@@ -213,8 +213,49 @@ const App = {
     handleImageFile(input) {
         if (!input.files || !input.files[0]) return;
         const file = input.files[0];
+        
+        // Check size (10MB limit)
+        if (file.size > 10 * 1024 * 1024) {
+            UI.showToast("ไฟล์รูปภาพใหญ่เกินไป (จำกัด 10MB)", "error");
+            input.value = "";
+            return;
+        }
+
+        UI.showLoading(true, 'กำลังประมวลผลรูปภาพ...');
+        
         const reader = new FileReader();
-        reader.onload = (e) => this.processImage(e.target.result);
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                // Compression logic using Canvas
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Max dimension 1200px to keep file size small but clear
+                const maxDim = 1200;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height *= maxDim / width;
+                        width = maxDim;
+                    } else {
+                        width *= maxDim / height;
+                        height = maxDim;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Convert to WebP or JPEG with 0.7 quality
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                this.processImage(compressedBase64);
+                UI.showLoading(false);
+            };
+            img.src = e.target.result;
+        };
         reader.readAsDataURL(file);
         input.value = "";
     },
