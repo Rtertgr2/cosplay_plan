@@ -1,212 +1,195 @@
-# Architecture Notes — Cosplay Planner (React + Firebase)
+# Architecture — Cosplay Planner (React + Firebase)
 
-> Draft — จะอัปเดตให้ตรงกับโค้ดจริงตอนจบโปรเจกต์ (T52)
+> **สถานะ: ร่าง (T03)** — จะเติมให้ครบใน T52 ตอนโค้ดมีจริงแล้ว
+> เอกสารนี้กำหนด "กฎ" ของสถาปัตยกรรม — ใช้ตรวจตอน review ด้วย
 
 ---
 
-## Layer Architecture
+## 1. Layer Flow
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Pages (Route Level)                    │
-│  Dashboard, CreateProject, ProjectDetail, Login, Register   │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ orchestrate
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Custom Hooks                           │
-│  useAuth, useProjects, useTheme, useToast                   │
-│  - State management                                         │
-│  - Business logic                                           │
-│  - Service orchestration                                    │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ call
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Services                               │
-│  projectService.js, storageService.js, firebase.js          │
-│  - Firebase SDK wrappers                                    │
-│  - NO DOM manipulation                                      │
-│  - NO UI rendering                                          │
-│  - Pure data operations                                     │
-└──────────────────────────┬──────────────────────────────────┘
-                           │ use
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Firebase SDK                           │
-│  Firestore, Storage, Auth, Hosting                          │
-└─────────────────────────────────────────────────────────────┘
+```text
+User
+  ↓
+React (Components)
+  ↓
+Pages            ← orchestration เท่านั้น
+  ↓
+Hooks / Context  ← state + side effects
+  ↓
+Services         ← ข้อมูลล้วน ไม่มี UI
+  ↓
+Firebase SDK     ← Firestore / Storage / Auth
 ```
 
----
+### กฎที่ห้ามละเมิด
 
-## Component Categories
-
-### `src/components/common/`
-Shared, reusable UI primitives:
-- `Button`, `Modal`, `ConfirmDialog`, `Toast`
-- `Loading`, `EmptyState`, `ErrorMessage`
-- `Input`, `Select`, `Textarea`, `Label`
-
-### `src/components/layout/`
-App shell & navigation:
-- `Layout` — root wrapper (header + sidebar + main)
-- `Header` — brand, theme toggle, user menu
-- `Sidebar` — desktop navigation
-- `MobileNav` — bottom nav for mobile
-- `ThemeToggle` — light/dark/system switch
-
-### `src/components/dashboard/`
-Dashboard-specific:
-- `DashboardHeader` — title + create button
-- `StatsCards` — 4 stat cards
-- `SearchBar` — search input
-- `StatusFilter` — status dropdown
-- `ProjectGrid` — responsive grid container
-- `ProjectCard` — individual project card
-
-### `src/components/project/`
-Project form & detail:
-- `ProjectForm` — main form orchestration
-- `ProjectHero` — detail page hero image
-- `ProjectInfo` — charName, series, budget
-- `ProjectStatus` — status badge
-- `ProjectNote` — note display
-- `ProjectItems` — items list
-- `ItemForm` — add/edit item
-- `ItemList` — list of items in form
-- `ImageUploader` — drag-drop, preview, upload progress
-- `StatusSelect` — status dropdown with labels
-
-### `src/components/auth/`
-- `ProtectedRoute` — wrapper for auth-required routes
+| กฎ | ตรวจอย่างไร |
+|---|---|
+| Component **ห้าม** import service โดยตรง | `grep -r "services/" src/components` |
+| Service **ห้าม**มี DOM / toast / redirect / render | `grep -rE "document\.|window\.|alert\(" src/services` |
+| Page เป็น **orchestration** — ประสบกันของ hook หลายตัว | อ่าน `pages/*.jsx` ต้องเห็นแค่ composition |
+| Hook เรียก service เท่านั้น ไม่เรียก Firebase SDK ตรง | `grep -r "firebase/" src/hooks` |
+| **ห้าม** `base64Image` ใน model | `grep -r "base64Image" src/` |
+| Utility เป็น **pure function** | `utils/*` ไม่ import service/hook |
 
 ---
 
-## Data Flow Rules
+## 2. Target Folder Structure
 
-1. **Component → Hook → Service → Firebase** (strict)
-2. **Component NEVER imports Service directly** (except via hook)
-3. **Service NEVER touches DOM** (no `document`, no `window`)
-4. **Service NEVER shows toast/alert** (throws/returns errors)
-5. **Hook handles**: loading, error, optimistic updates
-6. **Page decides**: what to render based on hook state
-
----
-
-## Firebase Structure
-
-### Firestore
+```text
+src/
+├── components/
+│   ├── auth/         ProtectedRoute
+│   ├── common/       Button, Modal, ConfirmDialog, Loading, EmptyState, ErrorMessage, Toast
+│   ├── dashboard/    DashboardHeader, StatsCards, SearchBar, StatusFilter, ProjectGrid, ProjectCard
+│   ├── layout/       Layout, Header, Sidebar, MobileNav, ThemeToggle
+│   └── project/      ProjectForm, ProjectHero, ProjectInfo, ProjectStatus,
+│                     ProjectNote, ProjectItems, ItemForm, ItemList,
+│                     ImageUploader, StatusSelect
+│
+├── pages/            Dashboard, CreateProject, EditProject, ProjectDetail,
+│                     Login, Register, NotFound
+│
+├── services/         firebase, projectService, storageService
+│
+├── hooks/            useAuth, useProjects, useTheme
+│
+├── context/          AuthContext
+│
+├── utils/            constants, validation, projectStats, projectFilters,
+│                     image, formatters
+│
+├── styles/           index, tokens, globals, layout, components
+│
+├── js/               ⚠️ LEGACY — ลบใน T40
+│
+├── App.jsx
+└── main.jsx
 ```
+
+> `src/js/` และ `src/style.css` เดิม ยังอยู่จนกว่าจะถึง Phase 9 (T39–T40)
+> ห้าม import จาก `src/js/` ในโค้ดใหม่ — ถ้าจำเป็นแปลว่าออกแบบผิด
+
+---
+
+## 3. Data Flow
+
+### Read (Dashboard)
+
+```text
+Dashboard.jsx
+  ↓ useProjects()
+useProjects.js ──useAuth()──→ user.uid
+  ↓
+projectService.getProjects(uid)
+  ↓
+Firestore (where ownerId == uid, orderBy updatedAt desc)
+  ↓
+setState → re-render
+```
+
+### Write (Create with image)
+
+```text
+ProjectForm (component state)
+  ↓ validateProject()
+CreateProject.jsx
+  ↓
+projectService.createProject(uid, data)   → Firestore สร้าง doc → ได้ projectId
+  ↓
+storageService.uploadProjectImage(file, uid, projectId)   → { url, path }
+  ↓
+projectService.updateProject(projectId, { imageUrl })
+  ↓
+navigate('/projects/' + projectId)
+```
+
+> หมายเหตุ: สร้าง doc ก่อน upload เสมอ เพราะ Storage path ต้องมี `projectId`
+
+### Delete
+
+```text
+Detail → ConfirmDialog
+  ↓
+projectService.deleteProject(id)          → ลบ Firestore doc
+  ↓
+storageService.deleteProjectImage(path)   → ลบไฟล์รูป (ถ้ามี)
+  ↓
+navigate('/')
+```
+
+---
+
+## 4. Firestore
+
+```text
 projects/{projectId}
-  ownerId: string (required, == auth.uid)
-  charName: string
-  seriesName: string
-  budget: number
-  status: "planning"|"active"|"waiting"|"completed"|"cancelled"
-  note: string
-  imageUrl: string (Firebase Storage download URL)
-  items: array<{
-    name: string
-    price: number
-    shopLink: string
-    category: string
-  }>
-  createdAt: Timestamp
-  updatedAt: Timestamp
+  ownerId     string   ← uid เจ้าของ (required — ใช้กับ security rules)
+  charName    string
+  seriesName  string
+  budget      number
+  status      string   ← planning|active|waiting|completed|cancelled
+  note        string
+  imageUrl    string   ← Firebase Storage URL (ไม่ใช่ base64)
+  items[]     { name, price, shopLink, category }
+  createdAt   Timestamp
+  updatedAt   Timestamp
 ```
 
-### Storage
+### Query ที่ใช้จริง
+
+| Query | ต้องมี index |
+|---|---|
+| `where("ownerId","==",uid) + orderBy("updatedAt","desc")` | composite (T11) |
+
+### Ownership
+
+```text
+ทุก doc ต้องมี ownerId = auth.uid
+read/update/delete → เฉพาะ doc ที่ ownerId ตรงกับ auth.uid
 ```
+
+---
+
+## 5. Storage
+
+```text
 users/{userId}/projects/{projectId}/{timestamp}-{filename}
 ```
 
-### Auth
-- Email/Password (initial)
-- Google (optional later)
+Rules: `request.auth.uid == userId` + ชนิดเป็น image + ขนาด ≤ 5MB
 
 ---
 
-## State Management
+## 6. Routing
 
-| State | Location | Persistence |
-|-------|----------|-------------|
-| User session | `AuthContext` + `onAuthStateChanged` | Firebase Auth (IndexedDB) |
-| Projects list | `useProjects` hook | Firestore (source of truth) |
-| Form input | Component local state | — |
-| Temp image | Component local state (File/Blob) | — |
-| Theme preference | `useTheme` hook | localStorage (`cosplay-theme`) |
-| Toast queue | `ToastContext` | — |
+| Path | Page | Auth |
+|---|---|---|
+| `/login` | Login | ✗ |
+| `/register` | Register | ✗ |
+| `/` | Dashboard | ✓ |
+| `/projects/new` | CreateProject | ✓ |
+| `/projects/:id` | ProjectDetail | ✓ |
+| `/projects/:id/edit` | EditProject | ✓ |
+| `*` | NotFound | — |
+
+> Firebase Hosting ต้องมี rewrite `**` → `/index.html` (T41) ไม่งั้น deep link ไม่ทำงาน
 
 ---
 
-## Routing
+## 7. สิ่งที่ยังไม่ตัดสิน (ดูหัวข้อ ?1–?8 ใน `memory.md`)
 
+ยังไม่ finalize ก่อนถึง T09:
+
+```text
+- category slug (ไทย vs อังกฤษ)
+- emoji ใน status label อยู่ constants หรือ UI layer
+- validation บังคับแค่ charName หรือเพิ่ม seriesName
+- image limit 5MB (แผน) vs 10MB (ของเดิม)
+- แสดง "รวมราคาสินค้า" เพิ่มไหม
+- แยก empty state 2 แบบไหม
 ```
-/                     → Dashboard (protected)
-/projects/new         → Create Project (protected)
-/projects/:id         → Project Detail (protected)
-/projects/:id/edit    → Edit Project (protected)
-/login                → Login (public)
-/register             → Register (public)
-*                     → NotFound
-```
 
 ---
 
-## Key Conventions
-
-- **File naming**: PascalCase for components (`ProjectCard.jsx`), camelCase for hooks/utils (`useProjects.js`)
-- **Imports**: Group by external → internal → relative, alphabetical within group
-- **Exports**: Named exports for utilities, default export for components
-- **Type safety**: JSDoc @typedef for complex shapes (until TypeScript migration)
-- **CSS**: CSS variables from `tokens.css`, component-scoped classes in `components.css`
-
----
-
-## Migration Mapping (Legacy → New)
-
-| Legacy | New |
-|--------|-----|
-| `index.html` markup | React components |
-| `app.js:init()` | `App.jsx` + providers |
-| `app.js:loadDashboard()` | `Dashboard.jsx` + `useProjects()` |
-| `app.js:getProjects()` | `projectService.getProjects()` |
-| `app.js:getLocalStats()` | `projectStats.js` |
-| `app.js:handleSearch()` | `projectFilters.js` + React state |
-| `app.js:handleFilter()` | `projectFilters.js` + React state |
-| `app.js:createNewProject()` | route `/projects/new` |
-| `app.js:populateForm()` | `ProjectForm.jsx` |
-| `api.js:list()` | `projectService.getProjects()` |
-| `api.js:get()` | `projectService.getProject()` |
-| `api.js:create()` | `projectService.createProject()` |
-| `api.js:update()` | `projectService.updateProject()` |
-| `api.js:delete()` | `projectService.deleteProject()` |
-| `state.js.projects` | React state from `useProjects()` |
-| `state.js.localStorage` | Firestore |
-| `state.js.tempBase64Image` | component-local File/Blob state |
-| `ui.js:renderProjects()` | `ProjectGrid` + `ProjectCard` |
-| `ui.js:renderItems()` | `ProjectItems` |
-| `ui.js:showToast()` | `Toast` |
-| `ui.js:showLoading()` | `Loading` |
-| `ui.js:switchView()` | React Router |
-| `image.js` | `utils/image.js` + `storageService.js` |
-| `Code.gs:listProjects()` | `projectService.getProjects()` |
-| `Code.gs:getProjectById()` | `projectService.getProject()` |
-| `Code.gs:createProject()` | `projectService.createProject()` |
-| `Code.gs:updateProject()` | `projectService.updateProject()` |
-| `Code.gs:deleteProject()` | `projectService.deleteProject()` |
-| `Code.gs:searchProjects()` | client filter first; Firestore query later if needed |
-
----
-
-## Next Steps (Phases)
-
-1. **M1**: Vite + React bootstrap, env config
-2. **M2**: Firebase init, schema, services (CRUD, Storage)
-3. **M3**: Auth, Protected Routes, Login/Register
-4. **M4**: Hooks, Dashboard, Create/Edit/Detail, Items
-5. **M5**: Design System, Layout, UI Redesign (12 tasks)
-6. **M6**: Validation, Security Rules, Error Handling
-7. **M7**: Legacy Cleanup (remove GAS, vanilla JS, base64)
-8. **M8**: Hosting, Testing, Documentation
+*สร้าง: 2026-09-29 (T03) · จะอัปเดตเต็มใน T52*

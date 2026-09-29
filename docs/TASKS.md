@@ -41,7 +41,7 @@
 
 - [x] T01 Freeze Existing Behavior
 - [x] T02 Migration Branch / Backup
-- [ ] T03 Target Folder Structure
+- [x] T03 Target Folder Structure
 - [ ] T04 Vite + React Conversion
 - [ ] T05 Environment Strategy
 
@@ -192,23 +192,24 @@ chore: prepare migration branch
 
 ---
 
-## T03 — Define Target Folder Structure
+## T03 — Define Target Folder Structure ✅
 
-`[ ]` Depends: T02 · ⏱ ~30m · Files: `src/components/`, `pages/`, `services/`, `hooks/`, `context/`, `utils/`, `styles/`
+`[x]` Depends: T02 · ⏱ ~30m · Files: `src/components/`, `pages/`, `services/`, `hooks/`, `context/`, `utils/`, `styles/`
 
 ### Subtasks
 
-- [ ] สร้างโครง src ใหม่: `src/components/{common,layout,dashboard,project,auth}`, `src/pages`, `src/services`, `src/hooks`, `src/context`, `src/utils`, `src/styles`
-- [ ] ย้าย `src/style.css` เดิมไปไว้ `src/styles/` (ยังไม่ลบ ยังไม่ refactor)
-- [ ] เขียนโน้ต architecture ลง `docs/architecture.md` (แบบร่าง ส่วน layers: page → hook → service → firebase)
-- [ ] ตรวจ rule: component ไม่ import service โดยตรงเกินจำเป็น, service ไม่มี DOM, page เป็น orchestration
-- [ ] `git add` แล้ว commit (เว้นไฟล์ legacy ที่ยังไม่ถูกแตะ)
+- [x] สร้างโครง src ใหม่: `src/components/{common,layout,dashboard,project,auth}`, `src/pages`, `src/services`, `src/hooks`, `src/context`, `src/utils`, `src/styles`
+- [x] ใส่ `.gitkeep` ในทุกโฟลเดอร์ที่ยังว่าง เพื่อให้ git track โครงสร้าง
+- [x] ย้าย `src/style.css` เดิมไปไว้ `src/styles/style.css` (ยังไม่ลบ ยังไม่ refactor)
+- [x] เขียนโน้ต architecture ลง `docs/architecture.md` (layers, กฎห้ามละเมิด, data flow, schema, routing)
+- [x] ตรวจ rule: component ไม่ import service โดยตรง, service ไม่มี DOM, page เป็น orchestration
+- [x] `git add` แล้ว commit (เว้นไฟล์ legacy ที่ยังไม่ถูกแตะ)
 
 ### เสร็จเมื่อ
 
-- [ ] folder architecture ครบตามแผน
-- [ ] shared component อยู่ใน `components/common`
-- [ ] ไม่มี logic ปนกัน (แยกตามหัวข้อ rule ด้านบน)
+- [x] folder architecture ครบตามแผน
+- [x] shared component อยู่ใน `components/common`
+- [x] ไม่มี logic ปนกัน (แยกตามหัวข้อ rule ด้านบน)
 
 ### Commit
 
