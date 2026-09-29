@@ -40,7 +40,7 @@
 ### Milestone M1 — React Boots (T01–T05)
 
 - [x] T01 Freeze Existing Behavior
-- [ ] T02 Migration Branch / Backup
+- [x] T02 Migration Branch / Backup
 - [ ] T03 Target Folder Structure
 - [ ] T04 Vite + React Conversion
 - [ ] T05 Environment Strategy
@@ -166,23 +166,23 @@ docs: document legacy behavior before migration
 
 ---
 
-## T02 — Migration Branch / Backup
+## T02 — Migration Branch / Backup ✅
 
-`[ ]` Depends: T01 · ⏱ ~15m · Files: git branch + tag
+`[x]` Depends: T01 · ⏱ ~15m · Files: git branch + tag
 
 ### Subtasks
 
-- [ ] `git status` — เช็ค working tree ก่อน (ถ้ามีไฟล์ค้าง commit T01 ก่อน)
-- [ ] `git checkout -b migration/react-firebase`
-- [ ] `git tag legacy-before-react-migration`
-- [ ] `git push origin migration/react-firebase` (ถ้ามี remote) พร้อม `--tags`
-- [ ] ยืนยันด้วย `git branch -a` และ `git tag` ว่าเห็นทั้งคู่
+- [x] `git status` — เช็ค working tree ก่อน (ถ้ามีไฟล์ค้าง commit T01 ก่อน)
+- [x] `git checkout -b migration/react-firebase`
+- [x] `git tag legacy-before-react-migration`
+- [x] `git push origin migration/react-firebase` (ถ้ามี remote) พร้อม `--tags` — *skipped (no remote configured for push)*
+- [x] ยืนยันด้วย `git branch -a` และ `git tag` ว่าเห็นทั้งคู่
 
 ### เสร็จเมื่อ
 
-- [ ] branch `migration/react-firebase` แยกแล้ว
-- [ ] tag `legacy-before-react-migration` ชี้ commit ล่าสุดของ legacy
-- [ ] working tree สะอาด ไม่มี accidental changes
+- [x] branch `migration/react-firebase` แยกแล้ว
+- [x] tag `legacy-before-react-migration` ชี้ commit ล่าสุดของ legacy
+- [x] working tree สะอาด ไม่มี accidental changes
 
 ### Commit
 
