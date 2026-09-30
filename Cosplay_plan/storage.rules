@@ -1,0 +1,34 @@
+# ⚠️ ยังไม่ได้ deploy — และตอนนี้ "ไม่จำเป็นต้อง deploy" แล้ว
+# เหตุผล: Firebase Storage บังคับ Blaze plan (ผูกบัตร) ตั้งแต่ ก.พ. 2026 → เปิด bucket ไม่ได้
+# ทางเลือก: รูปภาพย้ายไป ImgBB แล้ว (src/services/storageService.ts) — ดู docs/security-test.md §5
+# เก็บไฟล์นี้ไว้เผื่อกลับมาใช้เมื่อเปิด Blaze ทีหลัง (ต้องเพิ่ม block "storage" ใน firebase.json คืน)
+rules_version = '2';
+
+// T30 — Firebase Storage security rules
+// path จาก STORAGE_PATH.PROJECT_IMAGE: users/{userId}/projects/{projectId}/{filename}
+// ⚠️ Plan B: ยังไม่ deploy — bucket ยังไม่ถูกเปิดใช้งาน (รอ Blaze plan)
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // image/* เท่านั้น (ไม่รวม SVG — XML scriptable) + ไม่เกิน 5MB (ตรง VALIDATION.MAX_IMAGE_SIZE_MB)
+    function validImage() {
+      return request.resource == null || (
+        request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('.*svg.*')
+        && request.resource.size <= 5 * 1024 * 1024
+      );
+    }
+
+    match /users/{userId}/projects/{allPaths=**} {
+      // อ่าน: เจ้าของเท่านั้น
+      allow read: if isOwner(userId);
+
+      // เขียน/ลบ: เจ้าของ + รูปภาพ ≤ 5MB (delete → request.resource เป็น null → ข้าม check)
+      allow write: if isOwner(userId) && validImage();
+    }
+  }
+}

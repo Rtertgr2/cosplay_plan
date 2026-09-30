@@ -19,3 +19,9 @@ node_modules/
 # Environment files
 .env
 .env.local
+
+# Backup archives (สำเนาโปรเจกต์ — 163MB ห้ามเข้า repo)
+*.zip
+
+# เครื่องมือ dev ของ agent (คงไว้ในเครื่อง ไม่เข้า repo)
+opencode.json

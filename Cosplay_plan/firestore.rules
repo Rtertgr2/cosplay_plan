@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// T29 — Firestore security rules
+// ทุก document ในคอลเลกชัน projects ต้องเป็นของ owner เท่านั้น
+// ห้ามมีกฎเปิดกว้างแบบ allow-all เด็ดขาด
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // ต้อง login และเป็นเจ้าของเอกสาร
+    function isOwner(data) {
+      return isSignedIn() && data.ownerId == request.auth.uid;
+    }
+
+    // ตรงกับ PROJECT_STATUS ใน src/utils/constants.ts
+    function validStatus(s) {
+      return s in ['planning', 'active', 'waiting', 'completed', 'cancelled'];
+    }
+
+    // ตรวจทุก field ของ project document ตรงกับ payload
+    // จริงใน src/services/projectService.ts (createProject/updateProject)
+    // ช่วงค่าตรงกับ src/utils/validation.ts (charName ≤ 100, budget ≥ 0)
+    function validFields(d) {
+      return d.keys().hasAll(['ownerId', 'charName', 'seriesName', 'budget', 'status', 'note', 'imageUrl', 'items', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['ownerId', 'charName', 'seriesName', 'budget', 'status', 'note', 'imageUrl', 'items', 'createdAt', 'updatedAt'])
+        && d.ownerId is string
+        && d.charName is string && d.charName.size() > 0 && d.charName.size() <= 100
+        && d.seriesName is string
+        && d.budget is number && d.budget >= 0
+        && validStatus(d.status)
+        && d.note is string
+        && d.imageUrl is string
+        && d.items is list
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+
+    // ── projects ─────────────────────────────────────────────
+
+    match /projects/{projectId} {
+      // สร้าง: ต้อง login + ownerId ต้องเป็นตัวเอง + field ถูกต้องทั้งหมด
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && validFields(request.resource.data);
+
+      // อ่าน: เจ้าของเท่านั้น (ครอบ query `where ownerId == uid` ด้วย)
+      allow read: if isOwner(resource.data);
+
+      // แก้ไข: เจ้าของ + ห้ามเปลี่ยน ownerId + field หลัง merge ถูกต้องทั้งหมด
+      allow update: if isOwner(resource.data)
+        && request.resource.data.ownerId == resource.data.ownerId
+        && validFields(request.resource.data);
+
+      // ลบ: เจ้าของเท่านั้น
+      allow delete: if isOwner(resource.data);
+    }
+
+    // คอลเลกชันอื่น ๆ ไม่มี match → deny โดยปริยาย
+  }
+}
