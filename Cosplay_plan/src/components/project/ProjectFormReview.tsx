@@ -29,7 +29,7 @@ export default function ProjectFormReview({ values, items, imageUrl, onEditStep 
   const spent = spentOf(items)
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Card
         className="ui-section"
         variant="borderless"

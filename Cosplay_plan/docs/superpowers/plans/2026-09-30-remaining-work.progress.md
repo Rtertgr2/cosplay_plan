@@ -81,3 +81,10 @@
 - เทสต์ใหม่ `layout/AppLayout.test.tsx` (2 เคส)
 - Gates: tests **156/156 (28 ไฟล์)** · build ✓ · lint ✓
 - **ยังต้องตรวจด้วยตา/เครื่องมือ (ผมทำแทนไม่ได้):** contrast ของ `--muted`/`--meta` บนพื้นมืด-สว่าง (ต้อง ≥ 4.5:1), focus order ตอนเปิดเมนูมือถือ, screen reader อ่านภาษาไทย
+
+### แก้ antd v6 deprecation (ผู้ใช้เจอใน console)
+- `Space direction` → `orientation` (2 ที่: `PageSkeleton`, `ProjectFormReview`) + `Card bordered={false}` → `variant="borderless"` (`Projects.tsx`)
+- **เทสต์ใหม่ที่แม่นกว่าการ assert markup:** ดัก `console.error` แล้วยืนยันว่าไม่มีข้อความ `[antd: ...] deprecated` — กันได้ทุก deprecation ในไฟล์ ไม่ใช่ prop เดียว
+- **พิสูจน์ว่าเทสต์จับได้จริง:** ย้อนกลับไปใช้ `direction` ชั่วคราว → เทสต์ fail พร้อมข้อความเดียวกับที่ผู้ใช้เห็น (`Warning: [antd: Space] direction is deprecated`) แล้วคืนค่า
+- **บทเรียน:** assert บน markup ใช้ไม่ได้กับ prop ที่ antd "กิน" ไปแล้วแปลงเป็น class (`orientation` ไม่โผล่ใน DOM) — ให้ดัก console แทน
+- Gates: tests **157/157 (28 ไฟล์)** · build ✓ · lint ✓ · rules-smoke 18/18

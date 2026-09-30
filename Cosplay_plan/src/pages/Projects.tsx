@@ -52,7 +52,7 @@ export default function Projects() {
         }
       />
 
-      <Card className="dashboard-filters" bordered={false} styles={{ body: { padding: 0 } }}>
+      <Card className="dashboard-filters" variant="borderless" styles={{ body: { padding: 0 } }}>
         <Flex justify="space-between" align="center" wrap gap={12} style={{ marginBottom: 12 }}>
           <div>
             <Typography.Text strong>ค้นหาโปรเจกต์</Typography.Text>

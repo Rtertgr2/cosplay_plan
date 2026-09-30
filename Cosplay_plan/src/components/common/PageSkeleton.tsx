@@ -28,7 +28,7 @@ function CardGrid({ count }: { count: number }) {
 
 function DetailSkeleton() {
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Skeleton active title={{ width: '45%' }} paragraph={{ rows: 1 }} />
       <Card variant="borderless">
         <Skeleton active paragraph={{ rows: 3 }} title={false} />

@@ -49,6 +49,20 @@ describe('ProjectFormReview (ขั้น ⑤ ตรวจสอบ)', () => {
     )
     expect(html.match(/แก้ไข/g)?.length).toBeGreaterThanOrEqual(3)
   })
+
+  it('ไม่มีคำเตือน deprecation ของ antd (เช่น Space direction → orientation)', () => {
+    // antd log เตือนผ่าน console.error → ดักไว้แล้วยืนยันว่าไม่มี "[antd: ...] deprecated"
+    // วิธีนี้กันได้ทุก deprecation ในไฟล์ ไม่ใช่แค่ prop ตัวเดียว
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderToStaticMarkup(
+      <ProjectFormReview values={values} items={items} imageUrl="" onEditStep={vi.fn()} />,
+    )
+    const antdWarnings = spy.mock.calls
+      .map((call) => String(call[0]))
+      .filter((message) => message.includes('antd:') && message.includes('deprecated'))
+    spy.mockRestore()
+    expect(antdWarnings).toEqual([])
+  })
 })
 
 describe('ProjectForm (ขั้นแรก)', () => {
