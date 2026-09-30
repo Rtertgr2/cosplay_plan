@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useAuth } from '../../hooks/useAuth'
-import PageSkeleton from '../common/PageSkeleton'
+import PageState from '../common/PageState'
 
 /**
  * ProtectedRoute (T6) — layout route: ครอบทุกหน้าที่ต้อง login ครั้งเดียวผ่าน `<Outlet />`
@@ -14,7 +14,7 @@ export default function ProtectedRoute() {
   const location = useLocation()
 
   if (loading) {
-    return <PageSkeleton variant="auth" />
+    return <PageState status="loading" />
   }
 
   if (!user) {

@@ -22,7 +22,6 @@ import ProjectNote from '../components/project/ProjectNote'
 import ProjectItems from '../components/project/ProjectItems'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import PageContainer from '../components/common/PageContainer'
-import PageSkeleton from '../components/common/PageSkeleton'
 import PageState from '../components/common/PageState'
 
 /**
@@ -51,7 +50,7 @@ export default function ProjectDetail() {
   }
 
   if (loading) {
-    return <PageSkeleton variant="detail" />
+    return <PageState status="loading" />
   }
 
   if (error) {

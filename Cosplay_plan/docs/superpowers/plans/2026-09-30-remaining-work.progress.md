@@ -8,8 +8,8 @@
 | เฟส | ขอบเขต | สถานะ |
 |---|---|---|
 | **V4** | `PublicLayout` + Landing (`/`) + ย้าย workspace ไป `/dashboard` + อัปเดต nav/link ทั้งแอป | ✅ |
-| **V5** | ฟอร์มสร้าง/แก้โปรเจกต์ 5 ขั้น (ตามสเปค §7) | ✅ |
-| **V6** | Skeleton แทน `Loading...` ทุกหน้า | ✅ |
+| **V5** | ฟอร์ม 5 ขั้น | ⛔ **ยกเลิกตามผู้ใช้** — คืนฟอร์มเดียวแบบเดิม |
+| **V6** | Skeleton แทน `Loading...` ทุกหน้า | ⛔ **ยกเลิกตามผู้ใช้** — คืน spinner แบบเดิม |
 | **V7** | a11y + polish (T47–T49) | ✅ (a11y) · ตรวจตา/contrast รอผู้ใช้ |
 | **M8** | T41 hosting ✅ · T42 build+ลด bundle ✅ · **T43 deploy — รออนุมัติ** · T50–T52 เอกสาร ✅ · T44–T49 ทดสอบมือ ⬜ | ⬜ |
 
@@ -88,3 +88,17 @@
 - **พิสูจน์ว่าเทสต์จับได้จริง:** ย้อนกลับไปใช้ `direction` ชั่วคราว → เทสต์ fail พร้อมข้อความเดียวกับที่ผู้ใช้เห็น (`Warning: [antd: Space] direction is deprecated`) แล้วคืนค่า
 - **บทเรียน:** assert บน markup ใช้ไม่ได้กับ prop ที่ antd "กิน" ไปแล้วแปลงเป็น class (`orientation` ไม่โผล่ใน DOM) — ให้ดัก console แทน
 - Gates: tests **157/157 (28 ไฟล์)** · build ✓ · lint ✓ · rules-smoke 18/18
+
+## ⛔ ผู้ใช้สั่งยกเลิก V5 + V6 (2026-09-30) — คืนเป็นแบบเดิม
+
+ผู้ใช้ตรวจในเบราว์เซอร์แล้วบอกว่า **"ใช้แบบเดิมดีกว่า"** เลือก 2 ข้อ: ฟอร์ม 5 ขั้น และ Skeleton
+(แต่ **เก็บ Landing** ไว้ ไม่ได้ revert)
+
+- **คืน `ProjectForm.tsx`** จาก commit `6e2117d` (ก่อนทำ wizard) → ฟอร์มเดียวเหมือนเดิ� ไม่มี Stepper/ปุ่มถัดไป
+- **ลบ** `ProjectFormReview.tsx` · `ProjectForm.test.tsx` · `PageSkeleton.tsx`
+- **คืน `PageState status="loading"`** ทั้ง 5 จุด (Dashboard · Projects · ProjectDetail · EditProject · ProtectedRoute) + Suspense fallback ใน `App.tsx`
+- **คืนเทสต์** `Dashboard/Projects/ProjectDetail.test.tsx` จาก `6e2117d` (ตัว case ที่ล็อก skeleton ออก)
+- **ที่ยังอยู่:** Landing + PublicLayout + route `/dashboard` · a11y skip link · code-splitting (entry 231 KB)
+- **เหตุผลที่ควรบันทึก:** การเปลี่ยนรูปแบบฟอร์ม/สถานะโหลดเป็นสิ่งที่ผู้ใช้ต้องลองใช้จริงถึงจะตัดสินได้
+  — ผมควรเสนอเป็น "ตัวเลือกให้เลือกพร้อมภาพ/คำอธิบาย" ก่อนลงมือ มากกว่าทำเสร็จแล้วให้มาย้อนกลับ
+- Gates: tests **147/147 (27 ไฟล์)** · build ✓ · lint ✓ · rules-smoke 18/18 · entry 231 KB

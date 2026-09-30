@@ -8,7 +8,7 @@ import { createAntdTheme } from './theme/antdTheme'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
 import ErrorBoundary from './components/common/ErrorBoundary'
-import PageSkeleton from './components/common/PageSkeleton'
+import PageState from './components/common/PageState'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import AppLayout from './components/layout/AppLayout'
 import PublicLayout from './components/layout/PublicLayout'
@@ -53,7 +53,7 @@ function AntdShell() {
           <ToastProvider>
             <BrowserRouter>
               <ErrorBoundary>
-                <Suspense fallback={<PageSkeleton variant="cards" />}>
+                <Suspense fallback={<PageState status="loading" />}>
                 <Routes>
                   {/* สาธารณะ — ยังไม่ต้อง login */}
                   <Route element={<PublicLayout />}>

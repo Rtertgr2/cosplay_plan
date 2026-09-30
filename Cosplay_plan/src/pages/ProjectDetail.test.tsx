@@ -38,12 +38,11 @@ function makeProject(over: Partial<Project> = {}): Project {
 }
 
 const update = vi.fn(async () => {})
-const hookState = vi.hoisted(() => ({ loading: false }))
 
 vi.mock('../hooks/useProject', () => ({
   useProject: () => ({
     project: makeProject(),
-    loading: hookState.loading,
+    loading: false,
     notFound: false,
     error: null,
     remove: vi.fn(async () => {}),
@@ -85,13 +84,5 @@ describe('ProjectDetail render', () => {
 
   it('ปุ่ม "กลับ" ชี้ไป /projects (ไม่ใช่รากเว็บ)', () => {
     expect(render()).toContain('href="/projects"')
-  })
-
-  it('ตอนโหลด แสดง skeleton (ไม่ใช่ spinner)', () => {
-    hookState.loading = true
-    const html = render()
-    hookState.loading = false
-    expect(html).toContain('data-testid="page-skeleton"')
-    expect(html).not.toContain('กำลังโหลด...')
   })
 })

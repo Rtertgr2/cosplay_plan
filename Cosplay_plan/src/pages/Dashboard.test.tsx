@@ -10,8 +10,6 @@ import type { Project } from '../services/projectService'
  * mock เฉพาะขอบเขตข้อมูล (hook) — ไม่ mock component ที่ต้องการพิสูจน์เอง
  */
 
-const hookState = vi.hoisted(() => ({ loading: false }))
-
 const projects: Project[] = Array.from({ length: 8 }, (_, i) => makeProject(i + 1))
 
 function makeProject(n: number): Project {
@@ -34,7 +32,7 @@ function makeProject(n: number): Project {
 vi.mock('../hooks/useProjects', () => ({
   useProjects: () => ({
     projects,
-    loading: hookState.loading,
+    loading: false,
     error: null,
     refresh: vi.fn(),
     remove: vi.fn(),
@@ -86,13 +84,5 @@ describe('Dashboard = workspace', () => {
 
   it('ไม่มีช่องค้นหาบน Dashboard (ย้ายไปหน้า /projects แล้ว)', () => {
     expect(render()).not.toContain('ค้นหาชื่อตัวละคร')
-  })
-
-  it('ตอนโหลดข้อมูล แสดง skeleton (ไม่ใช่ spinner + ข้อความ "กำลังโหลด...")', () => {
-    hookState.loading = true
-    const html = render()
-    hookState.loading = false
-    expect(html).toContain('data-testid="page-skeleton"')
-    expect(html).not.toContain('กำลังโหลด...')
   })
 })
