@@ -42,73 +42,73 @@
 - [x] T01 Freeze Existing Behavior
 - [x] T02 Migration Branch / Backup
 - [x] T03 Target Folder Structure
-- [ ] T04 Vite + React Conversion
-- [ ] T05 Environment Strategy
+- [x] T04 Vite + React Conversion
+- [x] T05 Environment Strategy
 
 ### Milestone M2 — Firebase CRUD Works (T06–T13)
 
-- [ ] T06 Create Firebase Project
-- [ ] T07 Firebase SDK Initialization
-- [ ] T08 Firestore Schema
-- [ ] T09 Status & Shared Constants
-- [ ] T10 projectService.js
-- [ ] T11 Firestore Indexes
-- [ ] T12 Image Upload Service
-- [ ] T13 Image Processing Migration
+- [x] T06 Create Firebase Project
+- [x] T07 Firebase SDK Initialization
+- [x] T08 Firestore Schema
+- [x] T09 Status & Shared Constants
+- [x] T10 projectService.js
+- [x] T11 Firestore Indexes
+- [x] T12 Image Upload Service
+- [x] T13 Image Processing Migration
 
 ### Milestone M3 — Authentication Works (T14–T18)
 
-- [ ] T14 Enable Firebase Authentication
-- [ ] T15 AuthContext
-- [ ] T16 Protected Routes
-- [ ] T17 Login Page
-- [ ] T18 Register Page
+- [x] T14 Enable Firebase Authentication
+- [x] T15 AuthContext
+- [x] T16 Protected Routes
+- [x] T17 Login Page
+- [x] T18 Register Page
 
 ### Milestone M4 — Feature Parity (T19–T27)
 
-- [ ] T19 Replace state.js With Hook
-- [ ] T20 useProjects Hook
-- [ ] T21 Dashboard Migration
-- [ ] T22 Statistics Calculation
-- [ ] T23 Search & Filter Logic
-- [ ] T24 Create Project Page
-- [ ] T25 Edit Project Flow
-- [ ] T26 Project Detail Page
-- [ ] T27 Item Management
+- [x] T19 Replace state.js With Hook
+- [x] T20 useProjects Hook
+- [x] T21 Dashboard Migration
+- [x] T22 Statistics Calculation
+- [x] T23 Search & Filter Logic
+- [x] T24 Create Project Page
+- [x] T25 Edit Project Flow
+- [x] T26 Project Detail Page
+- [x] T27 Item Management
 
 ### Milestone M5 — New UI (UI-01 → UI-12)
 
-- [ ] UI-01 Design System
-- [ ] UI-02 Global Layout
-- [ ] UI-03 Dashboard Redesign
-- [ ] UI-04 Project Card Redesign
-- [ ] UI-05 Project Form Redesign
-- [ ] UI-06 Image Uploader Redesign
-- [ ] UI-07 Project Detail Redesign
-- [ ] UI-08 Modal / Confirmation
-- [ ] UI-09 Toast System
-- [ ] UI-10 Loading / Empty / Error States
-- [ ] UI-11 Theme Migration
-- [ ] UI-12 Responsive & Accessibility Pass
+- [x] UI-01 Design System
+- [x] UI-02 Global Layout
+- [x] UI-03 Dashboard Redesign
+- [x] UI-04 Project Card Redesign
+- [x] UI-05 Project Form Redesign
+- [x] UI-06 Image Uploader Redesign
+- [x] UI-07 Project Detail Redesign
+- [x] UI-08 Modal / Confirmation
+- [x] UI-09 Toast System
+- [x] UI-10 Loading / Empty / Error States
+- [x] UI-11 Theme Migration
+- [x] UI-12 Responsive & Accessibility Pass
 
 ### Milestone M6 — Secure (T28–T35)
 
-- [ ] T28 Project Validation
-- [ ] T29 Firestore Security Rules
-- [ ] T30 Storage Security Rules
-- [ ] T31 URL / External Link Safety
-- [ ] T32 Central Error Handling
-- [ ] T33 Prevent Duplicate Submit
-- [ ] T34 Offline / Network Failure
-- [ ] T35 Not Found / Invalid Route
+- [x] T28 Project Validation
+- [x] T29 Firestore Security Rules
+- [x] T30 Storage Security Rules (superseded — Firebase Storage ใช้ไม่ได้ไม่มีบัตร → รูปย้ายไป ImgBB แล้ว, ดู security-test.md §5; `storage.rules` เก็บไว้เผื่อกลับมาใช้เมื่อมี Blaze)
+- [x] T31 URL / External Link Safety
+- [x] T32 Central Error Handling
+- [x] T33 Prevent Duplicate Submit
+- [x] T34 Offline / Network Failure
+- [x] T35 Not Found / Invalid Route
 
 ### Milestone M7 — Remove Legacy (T36–T40)
 
-- [ ] T36 Stop Using Legacy API
-- [ ] T37 Stop Using Legacy State
-- [ ] T38 Remove Base64 Data Model
-- [ ] T39 Remove Google Apps Script
-- [ ] T40 Remove Vanilla UI Code
+- [x] T36 Stop Using Legacy API
+- [x] T37 Stop Using Legacy State
+- [x] T38 Remove Base64 Data Model
+- [x] T39 Remove Google Apps Script (gas/ ออกจากนิเวศแล้ว — เหลือ `docs/legacy/gas/Code.gs` เป็นเอกสารอ้างอิง)
+- [x] T40 Remove Vanilla UI Code (ลบ `src/js/*` + `src/style.css` + root `index.html` — legacy คืนได้จาก tag `legacy-before-react-migration`)
 
 ### Milestone M8 — Production (T41–T52)
 
@@ -946,6 +946,8 @@ feat: add design system tokens
 ## UI-02 — Global Layout
 
 `[ ]` Depends: UI-01 · ⏱ ~0.5d · Files: `src/components/layout/{Layout,Header,Sidebar,MobileNav}.jsx`
+
+> อัปเดต 2026-09-29 (รอบ review-fixes / M6): สร้าง `Sidebar.tsx` แล้ว (desktop ≥768px, active state, tokens ล้วน — เติม gap P3) + wire เข้า `Layout.tsx` (flex row) และ `.sidebar` CSS ใน `globals.css` (คู่กับ `.mobile-nav`)
 
 ### Subtasks
 
