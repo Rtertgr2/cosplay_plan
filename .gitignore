@@ -19,3 +19,6 @@ node_modules/
 # Environment files
 .env
 .env.local
+
+# Backup archives (สำเนาโปรเจกต์ — 163MB ห้ามเข้า repo)
+*.zip
