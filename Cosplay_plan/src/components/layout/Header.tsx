@@ -56,7 +56,7 @@ export default function Header() {
           gap: 'var(--space-4)',
         }}
       >
-        <Link to="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <Link to={user ? '/dashboard' : '/'} style={{ textDecoration: 'none', flexShrink: 0 }}>
           <Typography.Text
             strong
             style={{

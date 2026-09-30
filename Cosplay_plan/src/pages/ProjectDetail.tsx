@@ -22,6 +22,7 @@ import ProjectNote from '../components/project/ProjectNote'
 import ProjectItems from '../components/project/ProjectItems'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import PageContainer from '../components/common/PageContainer'
+import PageSkeleton from '../components/common/PageSkeleton'
 import PageState from '../components/common/PageState'
 
 /**
@@ -42,7 +43,7 @@ export default function ProjectDetail() {
     setShowDeleteConfirm(false)
     try {
       await remove()
-      navigate('/')
+      navigate('/projects')
     } catch (err) {
       console.error(err)
       addToast('error', `ลบไม่สำเร็จ: ${toUserMessage(err)}`)
@@ -50,7 +51,7 @@ export default function ProjectDetail() {
   }
 
   if (loading) {
-    return <PageState status="loading" />
+    return <PageSkeleton variant="detail" />
   }
 
   if (error) {

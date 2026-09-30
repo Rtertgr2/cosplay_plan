@@ -7,7 +7,7 @@ import { NAV_ITEMS } from './nav'
  */
 describe('NAV_ITEMS', () => {
   it('มีหน้าหลัก + โปรเจกต์ของฉัน + สร้างใหม่ พร้อม path ที่ถูกต้อง', () => {
-    expect(NAV_ITEMS.map((item) => item.key)).toEqual(['/', '/projects', '/projects/new'])
+    expect(NAV_ITEMS.map((item) => item.key)).toEqual(['/dashboard', '/projects', '/projects/new'])
   })
 
   it('path ไม่ซ้ำกัน', () => {

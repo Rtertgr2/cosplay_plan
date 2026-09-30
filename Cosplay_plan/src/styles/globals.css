@@ -314,6 +314,24 @@ select {
   margin-bottom: var(--space-8);
 }
 
+/* ─── Accessibility: ข้ามไปเนื้อหา (V7/T48) ───
+   ซ่อนด้วยการย้ายออกจอ (ไม่ใช่ display:none) เพื่อให้ยัง focus ด้วยคีย์บอร์ดได้ */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
 /* ─── Utility Classes ───────────────────────────────────────── */
 
 .sr-only {

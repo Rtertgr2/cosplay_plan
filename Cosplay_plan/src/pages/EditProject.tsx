@@ -7,6 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { toUserMessage } from '../utils/errors'
 import ProjectForm from '../components/project/ProjectForm'
 import PageContainer from '../components/common/PageContainer'
+import PageSkeleton from '../components/common/PageSkeleton'
 import PageState from '../components/common/PageState'
 
 /**
@@ -72,7 +73,7 @@ export default function EditProject() {
   }
 
   if (loading) {
-    return <PageState status="loading" />
+    return <PageSkeleton variant="form" />
   }
 
   if (loadError) {

@@ -10,6 +10,7 @@ import type { Project } from '../services/projectService'
 import StatsCards from '../components/dashboard/StatsCards'
 import ProjectGrid from '../components/dashboard/ProjectGrid'
 import PageContainer from '../components/common/PageContainer'
+import PageSkeleton from '../components/common/PageSkeleton'
 import PageState from '../components/common/PageState'
 
 const RECENT_LIMIT = 6
@@ -43,7 +44,7 @@ export default function Dashboard() {
   )
 
   if (loading) {
-    return <PageState status="loading" />
+    return <PageSkeleton variant="cards" />
   }
 
   if (error) {

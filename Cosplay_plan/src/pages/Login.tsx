@@ -27,7 +27,8 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as { from?: string } | null)?.from ?? '/'
+  // ค่าเริ่มต้น = /dashboard (เข้าแอป) ไม่ใช่ / เพราะ / คือหน้า Landing สาธารณะแล้ว (V4)
+  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard'
   const [form] = Form.useForm<LoginValues>()
 
   const [error, setError] = useState('')

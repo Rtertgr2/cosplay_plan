@@ -13,10 +13,16 @@ import MobileNav from './MobileNav'
 export default function AppLayout() {
   return (
     <AntdLayout style={{ minHeight: '100vh' }}>
+      {/* a11y (V7/T48): ให้คีย์บอร์ดข้ามแถบบน+เมนูข้างไปเนื้อหาได้ในคลิกเดียว */}
+      <a href="#main-content" className="skip-link">
+        ข้ามไปเนื้อหา
+      </a>
       <Header />
       <div style={{ flex: 1, display: 'flex' }}>
         <Sidebar />
         <AntdLayout.Content
+          id="main-content"
+          tabIndex={-1}
           style={{
             flex: 1,
             minWidth: 0,

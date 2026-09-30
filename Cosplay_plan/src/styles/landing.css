@@ -1,0 +1,249 @@
+/* ========================================
+   Landing + PublicLayout (V4 — สเปค §6.1)
+   หน้าสาธารณะ: ไม่มีแถบเมนูแอป · ใช้ token เดียวกับทั้งแอป
+   ======================================== */
+
+.public-container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .public-container {
+    padding: 0 var(--space-6);
+  }
+}
+
+/* ─── Public header ─── */
+
+.public-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.public-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: 64px;
+}
+
+.public-logo {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--text-xl);
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.public-anchors {
+  display: none;
+  gap: var(--space-5);
+}
+
+.public-anchor,
+.public-login-link {
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+
+.public-anchor:hover,
+.public-login-link:hover {
+  color: var(--accent);
+}
+
+.public-login-link {
+  display: none;
+}
+
+/* ปุ่มเมนู (มือถือ) */
+.public-menu-button {
+  display: inline-flex;
+}
+
+@media (min-width: 768px) {
+  .public-anchors,
+  .public-login-link {
+    display: inline-flex;
+  }
+
+  .public-menu-button {
+    display: none;
+  }
+}
+
+/* ─── Hero ─── */
+
+.landing-hero {
+  padding: var(--space-12) 0;
+  background:
+    radial-gradient(circle at 15% 10%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 38%),
+    radial-gradient(circle at 85% 20%, color-mix(in oklab, var(--accent) 8%, transparent), transparent 34%);
+}
+
+.landing-hero-grid {
+  display: grid;
+  gap: var(--space-8);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .landing-hero-grid {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+.landing-title {
+  font-size: clamp(32px, 6vw, var(--text-4xl));
+  margin-bottom: var(--space-4) !important;
+}
+
+.landing-subtitle {
+  font-size: var(--text-lg);
+  color: var(--muted);
+  max-width: 46ch;
+  margin-bottom: var(--space-6) !important;
+}
+
+/* mockup — โครงจริงของแอปย่อขนาด ไม่ใช้รูป */
+.landing-mockup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-raised);
+  overflow: hidden;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.landing-mockup-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.landing-mockup-logo {
+  font-weight: var(--font-weight-bold);
+  color: var(--accent);
+  margin-right: auto;
+  font-size: var(--text-sm);
+}
+
+.landing-mockup-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+}
+
+.landing-mockup-body {
+  padding: var(--space-4);
+}
+
+.landing-mockup-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.landing-mockup-line {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--border-soft);
+  margin-top: var(--space-3);
+}
+
+.landing-mockup-line.short {
+  width: 80%;
+}
+
+.landing-mockup-line.shorter {
+  width: 55%;
+}
+
+/* ─── Sections ─── */
+
+.landing-section {
+  padding: var(--space-12) 0;
+  scroll-margin-top: 80px; /* ไม่ให้ anchor ถูกแถบบนบัง */
+}
+
+.landing-section.alt {
+  background: var(--surface-warm);
+}
+
+.landing-section-title {
+  text-align: center;
+  margin-bottom: var(--space-8) !important;
+}
+
+.landing-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .landing-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .landing-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* How it works / showcase มี 3 ใบ — ยืดให้เต็มแถว */
+  #how-it-works .landing-grid,
+  #showcase .landing-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  height: 100%;
+}
+
+.landing-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-3);
+}
+
+.landing-cta {
+  margin-top: var(--space-12);
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+
+.landing-footer {
+  padding: var(--space-8) 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}

@@ -16,7 +16,7 @@ export type NavItem = {
  * เพิ่มเมนูใหม่ = แก้ที่ไฟล์นี้ที่เดียว
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: '/', icon: <HomeOutlined />, label: 'หน้าหลัก' },
+  { key: '/dashboard', icon: <HomeOutlined />, label: 'หน้าหลัก' },
   { key: '/projects', icon: <UnorderedListOutlined />, label: 'โปรเจกต์ของฉัน' },
   { key: '/projects/new', icon: <PlusCircleOutlined />, label: 'สร้างใหม่' },
 ]

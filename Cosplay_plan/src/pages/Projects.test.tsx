@@ -25,12 +25,14 @@ function makeProject(n: number): Project {
   }
 }
 
+const hookState = vi.hoisted(() => ({ loading: false }))
+
 const projects = Array.from({ length: 8 }, (_, i) => makeProject(i + 1))
 
 vi.mock('../hooks/useProjects', () => ({
   useProjects: () => ({
     projects,
-    loading: false,
+    loading: hookState.loading,
     error: null,
     refresh: vi.fn(),
     remove: vi.fn(),
@@ -66,5 +68,13 @@ describe('หน้า /projects (My Projects)', () => {
   it('เรียงใหม่สุดขึ้นก่อน', () => {
     const html = render()
     expect(html.indexOf('โปรเจกต์-8')).toBeLessThan(html.indexOf('โปรเจกต์-1"'))
+  })
+
+  it('ตอนโหลดข้อมูล แสดง skeleton', () => {
+    hookState.loading = true
+    const html = render()
+    hookState.loading = false
+    expect(html).toContain('data-testid="page-skeleton"')
+    expect(html).not.toContain('กำลังโหลด...')
   })
 })

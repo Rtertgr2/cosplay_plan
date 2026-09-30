@@ -166,15 +166,21 @@ upload:  ImageUploader → processImage (≤5MB, image/*, ห้าม svg, ย�
 
 ## 6. Routing
 
-| Path | Page | Auth |
-|---|---|---|
-| `/login` | Login | ✗ |
-| `/register` | Register | ✗ |
-| `/` | Dashboard | ✓ |
-| `/projects/new` | CreateProject | ✓ |
-| `/projects/:id` | ProjectDetail | ✓ |
-| `/projects/:id/edit` | EditProject | ✓ |
-| `*` | NotFound | — |
+| Path | Page | Layout | Auth |
+|---|---|---|---|
+| `/` | Landing | `PublicLayout` | ✗ |
+| `/login` | Login | `AuthLayout` | ✗ |
+| `/register` | Register | `AuthLayout` | ✗ |
+| `/dashboard` | Dashboard | `AppLayout` | ✓ |
+| `/projects` | Projects | `AppLayout` | ✓ |
+| `/projects/new` | CreateProject | `AppLayout` | ✓ |
+| `/projects/:id` | ProjectDetail | `AppLayout` | ✓ |
+| `/projects/:id/edit` | EditProject | `AppLayout` | ✓ |
+| `/settings` | Settings | `AppLayout` | ✓ |
+| `*` | NotFound | `AppLayout` | — |
+
+> 3 layout: `PublicLayout` (หน้าสาธารณะ) · `AuthLayout` (แถบบาง ตอนยังไม่ login) · `AppLayout` (แอปเต็มรูปแบบ)
+> หน้าที่โหลดแบบ lazy (`React.lazy`) ถูกห่อด้วย `Suspense` + `PageSkeleton` → entry bundle เล็กลงมาก (232 KB จาก 1.6 MB)
 
 > Firebase Hosting ต้องมี rewrite `**` → `/index.html` (T41) ไม่งั้น deep link ไม่ทำงาน
 

@@ -10,6 +10,7 @@ import StatusFilter from '../components/dashboard/StatusFilter'
 import ProjectGrid from '../components/dashboard/ProjectGrid'
 import PageContainer from '../components/common/PageContainer'
 import PageHeader from '../components/common/PageHeader'
+import PageSkeleton from '../components/common/PageSkeleton'
 import PageState from '../components/common/PageState'
 
 function byUpdatedDesc(a: Project, b: Project): number {
@@ -31,7 +32,7 @@ export default function Projects() {
   }, [projects, search, status])
 
   if (loading) {
-    return <PageState status="loading" />
+    return <PageSkeleton variant="cards" />
   }
 
   if (error) {

@@ -51,7 +51,7 @@ export default function Register() {
     try {
       await register(values.email, values.password, values.displayName)
       // success: ค้าง lock + isSubmitting ไว้ระหว่าง navigate
-      navigate('/', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(authErrorMessage(err, 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่'))
       submitLock.current = false
